@@ -1,3 +1,6 @@
+[tool.semantic_release]
+version_variable = "pyproject.toml:version"
+
 [tool.poetry]
 name = "instrumentum"
 version = "0.1.0"
