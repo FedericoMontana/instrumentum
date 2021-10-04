@@ -3,7 +3,7 @@ version_variable = "pyproject.toml:version"
 
 [tool.poetry]
 name = "instrumentum"
-version = "0.2.0"
+version = "0.3.0"
 description = "General utilities for data science projects"
 authors = ["Federico Montanana"]
 license = "MIT"
