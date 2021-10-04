@@ -1,18 +1,21 @@
 
     
 def ts_print(df, col_target, col_key, value_true=1):
-    """
-    Print a dataframe containig timeseries information
+    """ Print a Pandas dataframe with the required format
 
-    :param df: The dataframe to print out the information
-    :type df: Pandas DataFrame
-    :param col_target: The target column
-    :type col_target: String
-    :param col_key: The key column
-    :type col_key: String
-    :param value_true: What is the target value considered possitive? defaults to 1
-    :type value_true: int, optional
-    """    
+    Parameters
+    ----------
+    df : Dataframe
+        A dataframe in the required timeframe form
+    col_target : [type]
+        [description]
+    col_key : [type]
+        [description]
+    value_true : int, optional
+        [description], by default 1
+    """
+    
+    
     # Let's get all the customers that had at least one open card (drop duplicates; same cust can appear more than once)
     keys_pos_unique = df.loc[df[col_target] == value_true][col_key].drop_duplicates(
         keep="first"
