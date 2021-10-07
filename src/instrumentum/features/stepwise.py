@@ -94,38 +94,36 @@ def forward_stepwise(X_train, y_train, n_combs=1, rounding=4, add_always=False, 
     
     X_train = X_train.copy()
 
-    cols_added = []
-    
-    best_result_global = 0
+    main = {'score':0, 'cols':[]}
+
     
     while True:
-        cols_to_add = []
-        cols_to_test = [x for x in X_train.columns if x not in cols_added]  
-        best_result_local = 0
 
+        local = {'score':0, 'cols':[]}
+        
+        cols_remainig = [x for x in X_train.columns if x not in main['cols']]  
 
-        combs = list(_get_combs(len(cols_to_test),n_combs))
+        combs = list(_get_combs(len(cols_remainig),n_combs))
         combs.pop(0) # remove the empty set
         
         print("\nCombinations to test: {}".format(len(combs)))
-        for comb in combs:
-            l_comb = list(comb)
-            cols = cols_added + list(X_train[cols_to_test].columns[l_comb])
-            result_local = round(scorer(X_train[cols], y_train), rounding)
+        
+        # Find the best result testing the current combinations
+        for list(comb) in combs:
+            cols_to_test = main['cols'] + list(X_train[cols_remainig].columns[comb])
+            score = round(scorer(X_train[cols_to_test], y_train), rounding)
                 
-            if result_local > best_result_local:
-                best_result_local = result_local
-                cols_to_add =  list(X_train[cols_to_test].columns[l_comb])
-                #print(cols_to_add, result_local)
+            if score > local['score']:
+                local['score'], local['cols'] = score, cols_to_test 
 
-        if (best_result_local > best_result_global or add_always) and (len(cols_added) < len(X_train.columns)):
-            cols_added += cols_to_add
-            print("Best score: {}, previous {}, columns added: {}".format(best_result_local, best_result_global, cols_to_add))
-            print("Best columns so far: {}".format(cols_added))
+        if (local['score'] > main['score'] or add_always) and (len(main['cols']) < len(X_train.columns)):
+            
+            print("New score: {}, previous {}".format(local['score'], main['score']))
+            print("Columns so far: {}".format(local['cols'] ))
            
-            best_result_global = best_result_local
+            main = local.copy()
             
         else:
-            print("\nBest score: {}, columns final: {}".format(best_result_global, cols_added))
+            print("\nFinal score: {}, columns final: {}".format(main['score'], main['cols']))
             break
 
