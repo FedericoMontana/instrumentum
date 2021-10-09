@@ -101,7 +101,7 @@ def _run_scorer(X_train, y_train, rounding, tracker_cols, comb, scorer, verbose)
     return score, cols_comb
 
 # TODO, return a tuple or two lists with the columns and the aggregated score
-def forward_stepwise(X_train, y_train, n_combs=1, rounding=4, add_always=False, _scorer = None, verbose=logging.INFO):
+def forward_stepwise(X_train, y_train, n_combs=1, rounding=4, add_always=False, _scorer = None, verbose=logging.INFO, n_jobs=-1):
 
 
     logger.setLevel(verbose)
@@ -113,8 +113,12 @@ def forward_stepwise(X_train, y_train, n_combs=1, rounding=4, add_always=False, 
             raise ValueError("Value provided for scorer is not a callable function")
         
         scorer = _scorer
-       
-    n_jobs = multiprocessing.cpu_count()
+    
+    if(n_jobs != -1):
+        max_jobs = multiprocessing.cpu_count()
+        if(n_jobs > max_jobs):
+            logger.warning("Max processors in this coputer %s, lowering to that from input %s", max_jobs, n_jobs)
+            n_jobs = max_jobs
 
     keep_going = True
     
@@ -157,6 +161,6 @@ def forward_stepwise(X_train, y_train, n_combs=1, rounding=4, add_always=False, 
             logger.info("All columns were added. Finishing\n")
             keep_going = False
     
-    print("--- %s seconds ---" % (time.time() - start_time))
+    logger.info("Total time: %s seconds" % (time.time() - start_time))
     
     return tracker_cols
