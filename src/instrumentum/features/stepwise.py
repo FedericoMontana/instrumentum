@@ -2,7 +2,7 @@ from itertools import combinations
 from itertools import chain
 
 from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 def _default_scoring(X_train, y_train):
     
     model = DecisionTreeClassifier()
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+    cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=2, random_state=0)
     
-    return cross_val_score(model, X_train, y_train, scoring='accuracy', cv=cv).mean()
+    return cross_val_score(model, X_train, y_train, scoring='roc_auc', cv=cv).mean()
       
     
 def _get_combs(set_size, combs, include_empty=False):
@@ -103,7 +103,6 @@ def _run_scorer(X_train, y_train, rounding, tracker_cols, comb, scorer, verbose)
 # TODO, return a tuple or two lists with the columns and the aggregated score
 def forward_stepwise(X_train, y_train, n_combs=1, rounding=4, add_always=False, _scorer = None, verbose=logging.INFO, n_jobs=-1):
 
-
     logger.setLevel(verbose)
     
     scorer = _default_scoring
@@ -133,7 +132,7 @@ def forward_stepwise(X_train, y_train, n_combs=1, rounding=4, add_always=False, 
        
         n_cols_remaining = len(all_cols) - len(tracker_cols)
         combs = list(_get_combs(n_cols_remaining,n_combs))
-        
+                
         logger.info("Remaining columns to test: %s", n_cols_remaining)
         logger.info("Combinations to test: %s",len(combs))
 
