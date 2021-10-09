@@ -114,12 +114,13 @@ def forward_stepwise(X_train, y_train, n_combs=1, rounding=4, add_always=False, 
         
         scorer = _scorer
     
+    max_jobs = multiprocessing.cpu_count()
     if(n_jobs != -1):
-        max_jobs = multiprocessing.cpu_count()
         if(n_jobs > max_jobs):
             logger.warning("Max processors in this coputer %s, lowering to that from input %s", max_jobs, n_jobs)
             n_jobs = max_jobs
 
+    logger.info("Number of cores to be used: %s\n (-1 = all), total cores: %s\n", n_jobs, max_jobs)
     keep_going = True
     
     all_cols = list(X_train.columns)
