@@ -9,20 +9,30 @@ from sklearn.tree import DecisionTreeClassifier
 
 import pandas as pd
 import numpy as np
+import logging
 
+import time
 
+from joblib import Parallel, delayed
+import multiprocessing
+
+logger = logging.getLogger(__name__)
+    
 def _default_scoring(X_train, y_train):
     
     model = DecisionTreeClassifier()
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=0)
+    
     return cross_val_score(model, X_train, y_train, scoring='accuracy', cv=cv).mean()
       
     
-def _get_combs(set_size, combs):
+def _get_combs(set_size, combs, include_empty=False):
 
-    l_combs = [combinations(list(range(0, set_size)), x) for x in range(0, combs + 1)]
+    l_comb = [combinations(list(range(0, set_size)), x) \
+        for x in range((0 if include_empty else 1), combs + 1)]
 
-    return chain.from_iterable(l_combs)
+    return chain.from_iterable(l_comb)
+   
 
 
 # TODO: en vez de drop real y las condiciones, tener una variable que vaya agregando los globales que se eliminan
@@ -77,8 +87,25 @@ def backward_stepwise(X_train, y_train, n_combs=1, rounding=4, remove_always=Fal
             break
 
 
-def forward_stepwise(X_train, y_train, n_combs=1, rounding=4, add_always=False, _scorer = None):
+        
+def _run_scorer(X_train, y_train, rounding, tracker_cols, comb, scorer, verbose):
+    cols_not_yet_added = [c for c in X_train.columns if c not in tracker_cols]
+    cols_comb = list(X_train[cols_not_yet_added].columns[comb])
+    cols_to_test =  tracker_cols + cols_comb
+    score = scorer(X_train[cols_to_test], y_train)
+    score = round(score, rounding)
+    
+    logger.setLevel(verbose)
+    logger.debug("Score %s for this combination: %s", score, cols_comb)
+    
+    return score, cols_comb
 
+# TODO, return a tuple or two lists with the columns and the aggregated score
+def forward_stepwise(X_train, y_train, n_combs=1, rounding=4, add_always=False, _scorer = None, verbose=logging.INFO):
+
+
+    logger.setLevel(verbose)
+    
     scorer = _default_scoring
     
     if(_scorer is not None):
@@ -86,44 +113,50 @@ def forward_stepwise(X_train, y_train, n_combs=1, rounding=4, add_always=False, 
             raise ValueError("Value provided for scorer is not a callable function")
         
         scorer = _scorer
-    
-    
-    print("Number of combinations: ", n_combs)
-    print("Training shape: ", X_train.shape)
-    print("Label distribution: \n", y_train.value_counts())
-    
-    X_train = X_train.copy()
+       
+    n_jobs = multiprocessing.cpu_count()
 
-    main = {'score':0, 'cols':[]}
-
+    keep_going = True
     
-    while True:
-
-        local = {'score':0, 'cols':[]}
+    all_cols = list(X_train.columns)
+    tracker_cols  = []
+    tracker_score = 0
+    
+    start_time = time.time()
+    
+    while keep_going:
+       
+        n_cols_remaining = len(all_cols) - len(tracker_cols)
+        combs = list(_get_combs(n_cols_remaining,n_combs))
         
-        cols_remainig = [x for x in X_train.columns if x not in main['cols']]  
+        logger.info("Remaining columns to test: %s", n_cols_remaining)
+        logger.info("Combinations to test: %s",len(combs))
 
-        combs = list(_get_combs(len(cols_remainig),n_combs))
-        combs.pop(0) # remove the empty set
+        ret = Parallel(n_jobs=n_jobs) \
+            (delayed(_run_scorer) \
+                (X_train, y_train, rounding, tracker_cols, list(comb), scorer, verbose) \
+                    for comb in combs)
+
+        best_comb_score, best_comb_cols = max(ret,key=lambda item:item[0])
         
-        print("\nCombinations to test: {}".format(len(combs)))
+        logger.info("Best score from combinations: %s, global score %s", best_comb_score, tracker_score)
+        logger.info("Best score comes from columns: %s", best_comb_cols)
         
-        # Find the best result testing the current combinations
-        for list(comb) in combs:
-            cols_to_test = main['cols'] + list(X_train[cols_remainig].columns[comb])
-            score = round(scorer(X_train[cols_to_test], y_train), rounding)
+        if (best_comb_score > tracker_score or add_always):
+            
+            tracker_cols += best_comb_cols
+            tracker_score = best_comb_score
+            
+            logger.info("Best columns were added. All columns added so far %s\n", tracker_cols)
                 
-            if score > local['score']:
-                local['score'], local['cols'] = score, cols_to_test 
-
-        if (local['score'] > main['score'] or add_always) and (len(main['cols']) < len(X_train.columns)):
-            
-            print("New score: {}, previous {}".format(local['score'], main['score']))
-            print("Columns so far: {}".format(local['cols'] ))
-           
-            main = local.copy()
-            
         else:
-            print("\nFinal score: {}, columns final: {}".format(main['score'], main['cols']))
-            break
+            logger.info("Columns were not added as they do not increase score. Finishing\n")
+            keep_going = False
 
+        if(len(tracker_cols) == len(all_cols)):
+            logger.info("All columns were added. Finishing\n")
+            keep_going = False
+    
+    print("--- %s seconds ---" % (time.time() - start_time))
+    
+    return tracker_cols
