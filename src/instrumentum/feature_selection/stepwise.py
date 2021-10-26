@@ -16,6 +16,8 @@ import time
 from joblib import Parallel, delayed
 import multiprocessing
 
+from instrumentum.utils.decorators import timeit
+
 logger = logging.getLogger(__name__)
 
 
@@ -112,11 +114,10 @@ def backward_stepwise(
 
 def _run_scorer(X_train, y_train, rounding, tracker_cols, comb, scorer, verbose):
     cols_not_yet_added = [c for c in X_train.columns if c not in tracker_cols]
-    # TODO: hace falta usar el X_train.columns aca? no se puede directo con el cols_not_yet_added
-    # [property_a[i] for i in good_indices]
-    cols_comb = list(X_train[cols_not_yet_added].columns[comb])
+    cols_comb = [cols_not_yet_added[idx] for idx in comb]
+
     cols_to_test = tracker_cols + cols_comb
-    
+
     score = scorer(X_train[cols_to_test], y_train)
     score = round(score, rounding)
 
@@ -126,62 +127,104 @@ def _run_scorer(X_train, y_train, rounding, tracker_cols, comb, scorer, verbose)
     return score, cols_comb
 
 
-# TODO, return a tuple or two lists with the columns and the aggregated score
+@timeit
 def forward_stepwise(
-    X_train,
-    y_train,
+    X,
+    y,
     n_combs=1,
     rounding=4,
     add_always=False,
-    _scorer=None,
+    scorer=None,
     verbose=logging.INFO,
     n_jobs=-1,
 ):
+    """
+    Function that tries to find the columns that offer the best prediction power,
+    based on the training and label information provided.
+    The algorithm of forward stepwise is well known. This function expands on the
+    concept by trying to select more than 1 column at each iteration. The number of
+    columns could be up to the parameter n_combs. One could try to search over all
+    the possible combinations of pending columns but the resources required tend to
+    infinite. The parameter n_combs control how many combinations to test based on
+    the columns not yeat added
 
+    Parameters
+    ----------
+    X : DataFrame
+        Training information
+    y : Series
+        Label results of the training information
+    n_combs : int, optional
+        Number of combinations to test from the remaining columns. If set to 1, the
+        function adds at most 1 column at each iteration, and behaves as the standard
+        forward stepwise algorithm, by default 1
+    rounding : int, optional
+        The function (if add_always is False) will try to add new columns only if they
+        improve the performance (in theory additional columns would never make the metric worse). 
+        We might not be interested in keep adding columns if the performance is slightly improved,
+        or none at all. This parameter rounds the result of the scoring such that the smaller this value,
+        the less likely it will keep adding columns. For example, if adding column x adds
+        0.001 of prediction power, but rounding is 2, this will be 0 and the iteration will
+        not add it, by default 4
+    add_always : bool, optional
+        If one needs to keep adding the best columns, regardless if they improve the overall
+        performance, this variable must be True. If true, the function will return all the
+        columns of the training dataset, sorted by the scoring produced for their additions,
+        by default False
+    scorer : [type], optional
+        [description], by default None
+    verbose : [type], optional
+        [description], by default logging.INFO
+    n_jobs : int, optional
+        [description], by default -1
+
+    Returns
+    -------
+    list
+        A list of tuples (ordered) of the columns selected
+
+    """
     logger.setLevel(verbose)
 
-    scorer = _default_scoring
-
-    if _scorer is not None:
-        if not hasattr(_scorer, "__call__"):
+    if scorer is not None:
+        if not hasattr(scorer, "__call__"):
             raise ValueError("Value provided for scorer is not a callable function")
-
-        scorer = _scorer
+    else:
+        scorer = _default_scoring
 
     max_jobs = multiprocessing.cpu_count()
     if n_jobs != -1:
         if n_jobs > max_jobs:
             logger.warning(
-                "Max processors in this coputer %s, lowering to that from input %s",
+                "Max cores in this coputer %s, lowering to that from input %s",
                 max_jobs,
                 n_jobs,
             )
             n_jobs = max_jobs
 
     logger.info(
-        "Number of cores to be used: %s, total cores: %s\n",
-        max_jobs if n_jobs==-1 else n_jobs,
+        "Number of cores to be used: %s, total available: %s\n",
+        max_jobs if n_jobs == -1 else n_jobs,
         max_jobs,
     )
-    keep_going = True
 
-    all_cols = list(X_train.columns)
     tracker_cols, tracker_score = [], 0
+    return_data = []
 
-    start_time = time.time()
+    keep_going = True
 
     while keep_going:
 
-        n_cols_remaining = len(all_cols) - len(tracker_cols)
+        n_cols_remaining = len(X.columns) - len(tracker_cols)
         combs = list(_get_combs(n_cols_remaining, n_combs))
 
         logger.info("Remaining columns to test: %s", n_cols_remaining)
         logger.info("Combinations to test: %s", len(combs))
 
-        ret = Parallel(n_jobs=n_jobs)(
+        comb_results = Parallel(n_jobs=n_jobs)(
             delayed(_run_scorer)(
-                X_train,
-                y_train,
+                X,
+                y,
                 rounding,
                 tracker_cols,
                 list(comb),
@@ -191,7 +234,7 @@ def forward_stepwise(
             for comb in combs
         )
 
-        best_comb_score, best_comb_cols = max(ret, key=lambda item: item[0])
+        best_comb_score, best_comb_cols = max(comb_results, key=lambda item: item[0])
 
         logger.info(
             "Best score from combinations: %s, global score %s",
@@ -216,10 +259,10 @@ def forward_stepwise(
             )
             keep_going = False
 
-        if len(tracker_cols) == len(all_cols):
+        if len(tracker_cols) == len(X.columns):
             logger.info("All columns were added. Finishing\n")
             keep_going = False
 
-    logger.info("Total time: %s seconds" % (time.time() - start_time))
+        return_data.append((best_comb_cols, best_comb_score))
 
-    return tracker_cols
+    return return_data

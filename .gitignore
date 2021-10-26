@@ -141,3 +141,6 @@ dmypy.json
 
 # MacOS
 .DS_Store
+
+# Others
+sandbox.ipynb
