@@ -7,5 +7,3 @@ logging.basicConfig(format='%(asctime)s | %(levelname)s | %(message)s',
 
 __version__ = version("instrumentum")
 
-
-
