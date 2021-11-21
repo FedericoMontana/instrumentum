@@ -1,13 +1,14 @@
-import optuna
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBRegressor
-from lightgbm import LGBMClassifier
-from catboost import CatBoostClassifier
-from sklearn.tree import DecisionTreeClassifier
-
-import optuna.integration.lightgbm as lgb
 import logging
+
+import optuna
+import optuna.integration.lightgbm as lgb
+from catboost import CatBoostClassifier
+from lightgbm import LGBMClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from xgboost import XGBRegressor
+
 
 def _xgbclassifier_default(trial: optuna.trial.Trial):
     param = {
@@ -16,7 +17,7 @@ def _xgbclassifier_default(trial: optuna.trial.Trial):
         "eval_metric": "auc",
         "booster": trial.suggest_categorical("booster", ["gbtree", "gblinear", "dart"]),
         "lambda": trial.suggest_loguniform("lambda", 1e-3, 10),
-        "alpha": trial.suggest_loguniform("alpha", 0, 10),
+        "alpha": trial.suggest_loguniform("alpha", 1e-3, 10),
         "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-1, log=True),
         "n_estimators": trial.suggest_int("n_estimators", 20, 600, step=20),
     }
@@ -45,8 +46,9 @@ def _lgbmclassifier_default(trial: optuna.trial.Trial):
     params = {
         #"verbosity": -1,
         "boosting_type": trial.suggest_categorical(
-            "boosting", ["gbdt", "dart", "goss"]
+            "boosting_type", ["gbdt", "dart", "goss"]
         ),
+        "verbose": -1,
         "objective": "binary",
         "metric": ["binary", "binary_error", "auc"],
         "num_leaves": trial.suggest_int("num_leaves", 5, 500, step=5),
@@ -106,10 +108,19 @@ def _decision_tree_classifier_default(trial: optuna.trial.Trial):
     return params
 
 
+def _decision_tree_regressor_default(trial: optuna.trial.Trial):
+    params = {
+        "max_depth": trial.suggest_int("max_depth", 1, 12),
+      #  "criterion": trial.suggest_categorical("criterion", ["gini", "entropy"])
+    }
+
+    return params
+
 optuna_param_disp = {
     XGBRegressor.__name__: _xgbclassifier_default,
     LGBMClassifier.__name__: _lgbmclassifier_default,
     RandomForestClassifier.__name__: _random_forest_classifier_default,
     CatBoostClassifier.__name__: _catboostclassifier_default,
     DecisionTreeClassifier.__name__: _decision_tree_classifier_default,
+    DecisionTreeRegressor.__name__: _decision_tree_regressor_default,
 }
