@@ -1,40 +1,40 @@
-from sklearn.model_selection import cross_val_score
-from xgboost import XGBClassifier
-from xgboost import plot_importance
-from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import roc_auc_score
-import pandas as pd
-import optuna
-from lightgbm import LGBMClassifier
-from ._optuna_dispatchers import optuna_param_disp
-import optuna.integration.lightgbm as lgb
-
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold
-
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from xgboost import XGBRegressor
-from lightgbm import LGBMClassifier
-from catboost import CatBoostClassifier
-from sklearn.tree import DecisionTreeClassifier
-
 import logging
 
+import optuna
+import optuna.integration.lightgbm as lgb
+import pandas as pd
+from catboost import CatBoostClassifier
+from lightgbm import LGBMClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import (RepeatedStratifiedKFold, StratifiedKFold,
+                                     cross_val_score)
+from sklearn.tree import DecisionTreeClassifier
+from xgboost import XGBClassifier, XGBRegressor, plot_importance
+
+from instrumentum.model_tuning._optuna_dispatchers import optuna_param_disp
+
 logger = logging.getLogger(__name__)
+
 
 def _opt_generic_objective(X, y, trial, estimator, cv, metric):
 
     param = optuna_param_disp[estimator.__name__](trial)
     estimator = estimator(**param)
+
     score = cross_val_score(estimator, X=X, y=y, cv=cv, scoring=metric).mean()
 
-    trial_n = len(trial.study.trials)  
-    best_score = score if trial_n == 1 or score > trial.study.best_value else trial.study.best_value 
-    
+    trial_n = len(trial.study.trials)
+    best_score = (
+        score
+        if trial_n == 1 or score > trial.study.best_value
+        else trial.study.best_value
+    )
+
     logger.info("Trials: %s, Best Score: %s, Score %s", trial_n, best_score, score)
     return score
+
 
 def wrapper_opt(
     X,
@@ -45,17 +45,17 @@ def wrapper_opt(
     verbose=logging.INFO,
     return_fit=True,
     direction="maximize",
-    cv_splits = 5,
-    cv_repeats = 1,
+    cv_splits=5,
+    cv_repeats=1,
 ):
     # Our Logger
     logger.setLevel(verbose)
-    # Let's turn off the verbosity of optuna 
+    # Let's turn off the verbosity of optuna
     optuna.logging.set_verbosity(optuna.logging.ERROR)
 
     cv = RepeatedStratifiedKFold(n_splits=cv_splits, n_repeats=cv_repeats)
     estimator = estimator or DecisionTreeClassifier
-    
+
     logger.info("Estimator received: %s, trials: %s\n", estimator.__name__, n_trials)
 
     study = optuna.create_study(direction=direction)
@@ -73,8 +73,9 @@ def wrapper_opt(
 
     estimator = estimator(**study.best_params)
     return_fit and estimator.fit(X, y)
-    
+
     return study.best_trial.value, estimator
+
 
 def wrapper_opt_lgbm(
     X, y, metric="auc", time_budget=120, verbose=logging.INFO, return_fit=False
@@ -127,10 +128,3 @@ def wrapper_opt_lgbm(
     return_fit and lgbm.fit(X, y)
 
     return tuner.best_score, lgbm
-
-
-import pandas as pd
-
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold
-from sklearn.tree import DecisionTreeClassifier

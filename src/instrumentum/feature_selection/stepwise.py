@@ -1,268 +1,265 @@
-from itertools import combinations
-from itertools import chain
-
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import StratifiedKFold, RepeatedStratifiedKFold
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
-
-import pandas as pd
-import numpy as np
 import logging
+from itertools import chain, combinations
 
-import time
-
+import numpy as np
 from joblib import Parallel, delayed
-import multiprocessing
+from sklearn.base import BaseEstimator, MetaEstimatorMixin, clone
+from sklearn.exceptions import NotFittedError
+from sklearn.feature_selection import SelectorMixin
+from sklearn.metrics import check_scoring
+from sklearn.model_selection import check_cv
+from sklearn.utils.validation import _check_feature_names_in, check_is_fitted
 
-from instrumentum.utils.decorators import timeit
+from instrumentum.utils._decorators import timeit
+from instrumentum.utils.validation import check_jobs
 
 logger = logging.getLogger(__name__)
 
+# TODO:
+# receive a function for scoring. And add the scoring as a method
+# agregar una historia de casos para que no vuelva a verificar casos ya verificados
+# Document the full shit
+class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
+    def __init__(
+        self,
+        estimator,
+        *,
+        n_combs=1,
+        rounding=4,
+        add_always=False,
+        direction="forward",
+        n_jobs=-1,
+        verbose=logging.INFO,
+        # Max cols doesnt mean exactly this number, but
+        # no more than this number (unless add_always is true)
+        max_cols=None,
+    ):
 
-def _default_scoring(X_train, y_train):
+        self.estimator = estimator
+        self.n_combs = n_combs
+        self.rounding = rounding
+        self.add_always = add_always
+        self.direction = direction
+        self.n_jobs = n_jobs
+        self.verbose = verbose
+        self.max_cols = max_cols
 
-    model = DecisionTreeClassifier()
-    cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=2, random_state=0)
+        logger.setLevel(verbose)
 
-    return cross_val_score(model, X_train, y_train, scoring="roc_auc", cv=cv).mean()
+    @timeit
+    def fit(self, X, y):
 
-
-def _get_combs(set_size, combs, include_empty=False):
-
-    l_comb = [
-        combinations(list(range(0, set_size)), x)
-        for x in range((0 if include_empty else 1), combs + 1)
-    ]
-
-    return chain.from_iterable(l_comb)
-
-
-# TODO: en vez de drop real y las condiciones, tener una variable que vaya agregando los globales que se eliminan
-def backward_stepwise(
-    X_train, y_train, n_combs=1, rounding=4, remove_always=False, _scorer=None
-):
-
-    scorer = _default_scoring
-
-    if _scorer is not None:
-        if not hasattr(_scorer, "__call__"):
-            raise ValueError("Value provided for scorer is not a callable function")
-
-        scorer = _scorer
-
-    print("Number of combinations: ", n_combs)
-    print("Training shape: ", X_train.shape)
-    print("Label distribution: \n", y_train.value_counts())
-
-    X_train = X_train.copy()
-
-    result_global = round(scorer(X_train, y_train), rounding)
-
-    print("\nInitial scoring with all columns: ", result_global)
-    while True:
-
-        columns_to_remove = [None]
-        best_result_local = 0
-
-        combs = list(_get_combs(len(X_train.columns), n_combs))
-        combs.pop(0)  # remove the empty set
-
-        print("Combinations to test: {}".format(len(combs)))
-        for comb in combs:
-            l_comb = list(comb)
-
-            result_local = round(
-                scorer(X_train.drop(X_train.columns[l_comb], axis=1), y_train), rounding
+        if self.direction not in ("forward", "backward"):
+            raise ValueError(
+                "direction must be either 'forward' or 'backward'. "
+                f"Got {self.direction}."
             )
 
-            if result_local > best_result_local:
-                best_result_local = result_local
-                columns_to_remove = l_comb
-
-        # equal is important below, so all being equal, keep moving and removing columns
-        if (best_result_local >= result_global or remove_always) and (
-            len(X_train.columns) > 1
-        ):
-            print(
-                "Best score: {}, previous {}, columns removed: {}".format(
-                    best_result_local,
-                    result_global,
-                    list(X_train.columns[columns_to_remove]),
-                )
-            )
-            print(
-                "Best columns so far: {}".format(
-                    list(
-                        X_train.drop(X_train.columns[columns_to_remove], axis=1).columns
-                    )
-                )
-            )
-            result_global = best_result_local
-
-            X_train.drop(X_train.columns[columns_to_remove], axis=1, inplace=True)
-
-        else:
-            print(
-                "\nBest score: {}, columns final: {}".format(
-                    result_global, list(X_train.columns)
-                )
-            )
-            break
-
-
-def _run_scorer(X_train, y_train, rounding, tracker_cols, comb, scorer, verbose):
-    cols_not_yet_added = [c for c in X_train.columns if c not in tracker_cols]
-    cols_comb = [cols_not_yet_added[idx] for idx in comb]
-
-    cols_to_test = tracker_cols + cols_comb
-
-    score = scorer(X_train[cols_to_test], y_train)
-    score = round(score, rounding)
-
-    logger.setLevel(verbose)
-    logger.debug("Score %s for this combination: %s", score, cols_comb)
-
-    return score, cols_comb
-
-
-@timeit
-def forward_stepwise(
-    X,
-    y,
-    n_combs=1,
-    rounding=4,
-    add_always=False,
-    scorer=None,
-    verbose=logging.INFO,
-    n_jobs=-1,
-):
-    """
-    Function that tries to find the columns that offer the best prediction power,
-    based on the training and label information provided.
-    The algorithm of forward stepwise is well known. This function expands on the
-    concept by trying to select more than 1 column at each iteration. The number of
-    columns could be up to the parameter n_combs. One could try to search over all
-    the possible combinations of pending columns but the resources required tend to
-    infinite. The parameter n_combs control how many combinations to test based on
-    the columns not yeat added
-
-    Parameters
-    ----------
-    X : DataFrame
-        Training information
-    y : Series
-        Label results of the training information
-    n_combs : int, optional
-        Number of combinations to test from the remaining columns. If set to 1, the
-        function adds at most 1 column at each iteration, and behaves as the standard
-        forward stepwise algorithm, by default 1
-    rounding : int, optional
-        The function (if add_always is False) will try to add new columns only if they
-        improve the performance (in theory additional columns would never make the metric worse). 
-        We might not be interested in keep adding columns if the performance is slightly improved,
-        or none at all. This parameter rounds the result of the scoring such that the smaller this value,
-        the less likely it will keep adding columns. For example, if adding column x adds
-        0.001 of prediction power, but rounding is 2, this will be 0 and the iteration will
-        not add it, by default 4
-    add_always : bool, optional
-        If one needs to keep adding the best columns, regardless if they improve the overall
-        performance, this variable must be True. If true, the function will return all the
-        columns of the training dataset, sorted by the scoring produced for their additions,
-        by default False
-    scorer : [type], optional
-        [description], by default None
-    verbose : [type], optional
-        [description], by default logging.INFO
-    n_jobs : int, optional
-        [description], by default -1
-
-    Returns
-    -------
-    list
-        A list of tuples (ordered) of the columns selected
-
-    """
-    logger.setLevel(verbose)
-
-    if scorer is not None:
-        if not hasattr(scorer, "__call__"):
-            raise ValueError("Value provided for scorer is not a callable function")
-    else:
-        scorer = _default_scoring
-
-    max_jobs = multiprocessing.cpu_count()
-    if n_jobs != -1:
-        if n_jobs > max_jobs:
-            logger.warning(
-                "Max cores in this coputer %s, lowering to that from input %s",
-                max_jobs,
-                n_jobs,
-            )
-            n_jobs = max_jobs
-
-    logger.info(
-        "Number of cores to be used: %s, total available: %s\n",
-        max_jobs if n_jobs == -1 else n_jobs,
-        max_jobs,
-    )
-
-    tracker_cols, tracker_score = [], 0
-    return_data = []
-
-    keep_going = True
-
-    while keep_going:
-
-        n_cols_remaining = len(X.columns) - len(tracker_cols)
-        combs = list(_get_combs(n_cols_remaining, n_combs))
-
-        logger.info("Remaining columns to test: %s", n_cols_remaining)
-        logger.info("Combinations to test: %s", len(combs))
-
-        comb_results = Parallel(n_jobs=n_jobs)(
-            delayed(_run_scorer)(
-                X,
-                y,
-                rounding,
-                tracker_cols,
-                list(comb),
-                scorer,
-                verbose,
-            )
-            for comb in combs
+        # features_name_in are set if X is a DataFrame
+        X, y = self._validate_data(
+            X,
+            y,
         )
 
-        best_comb_score, best_comb_cols = max(comb_results, key=lambda item: item[0])
+        n_features = X.shape[1]
+        self.n_jobs = check_jobs(self.n_jobs, self.verbose)
+        self.seq_cols_added_ = []
+        self._candidates_history = {}
+        # the current mask corresponds to the set of features:
+        # - that we have already *selected* if we do forward selection
+        # - that we have already *excluded* if we do backward selection
+        current_mask = np.zeros(n_features, dtype=bool)
+
+        if self.direction == "backward":
+            est = clone(self.estimator)
+            est.fit(X[:, ~current_mask], y)
+            tracker_score = round(est.best_score_, self.rounding)
+            logger.info("With all columns, score is %s\n", tracker_score)
+        else:
+            # For forward, we know we have to at least add 1 column
+            tracker_score = 0
+
+        keep_going = True
+
+        while keep_going:
+
+            n_cols_remaining = sum(~current_mask)
+            n_combs_ = self._get_n_combs(current_mask)
+            combs = list(self._get_combs(n_cols_remaining, n_combs_))
+
+            logger.info("Remaining columns to test: %s", n_cols_remaining)
+            logger.info("Combinations to test: %s", len(combs))
+
+            comb_results = Parallel(n_jobs=self.n_jobs)(
+                delayed(self._get_best_columns)(
+                    X,
+                    y,
+                    estimator=clone(self.estimator),
+                    rounding=self.rounding,
+                    comb=list(comb),
+                    mask=current_mask,
+                )
+                for comb in combs
+            )
+
+            keep_going, tracker_score, current_mask = self._update_process(
+                comb_results, tracker_score, current_mask
+            )
+
+        self.mask_ = current_mask if self.direction == "forward" else ~current_mask
+
+    def _get_n_combs(self, current_mask):
+        if not self.max_cols:
+            return self.n_combs
+        # If max columns is set, and the next iterations only allow n
+        # more columns, but combs > n, this will avoid testing more
+        # than what max cols dictate
+        n_combs_ = min(self.n_combs, self.max_cols - sum(current_mask))
+
+        # Finishing conditions should finish the process before this could happen
+        assert n_combs_ > 0
+
+        return n_combs_
+
+    def _update_process(self, comb_results, tracker_score, current_mask):
+
+        assert len(comb_results) > 0
+        # easier to query
+        fwd = self.direction == "forward"
+
+        # Add to the history of candidates
+        self._candidates_history.update(
+            {
+                frozenset(np.append(comb, np.flatnonzero(current_mask))): score
+                for score, comb in comb_results
+            }
+        )
+
+        # Get the best ccandidate
+        best_comb_score, idx_best_comb_cols = max(
+            comb_results, key=lambda item: item[0]
+        )
 
         logger.info(
             "Best score from combinations: %s, global score %s",
             best_comb_score,
             tracker_score,
         )
-        logger.info("Best score comes from columns: %s", best_comb_cols)
 
-        # Check if finish conditions are met
-        if best_comb_score > tracker_score or add_always:
+        logger.info(
+            "Best score comes from %s columns: %s",
+            "adding" if fwd else "removing",
+            self._get_all_features_in()[idx_best_comb_cols],
+        )
 
-            tracker_cols += best_comb_cols
+        # When forward, we don't want to add if they dont improve the score (>)
+        # for backward, we prefer keep removing if they don't reduce the score (>=)
+        if (
+            best_comb_score > tracker_score if fwd else best_comb_score >= tracker_score
+        ) or self.add_always:
+
+            current_mask[idx_best_comb_cols] = True
             tracker_score = best_comb_score
+            self.seq_cols_added_.append(
+                (best_comb_score, self._get_all_features_in()[idx_best_comb_cols])
+            )
 
             logger.info(
-                "Best columns were added. All columns added so far %s\n", tracker_cols
+                "Best columns were %s. All columns %s so far %s\n",
+                "added" if fwd else "removed",
+                "added" if fwd else "removed",
+                self._get_all_features_in()[current_mask],
             )
+            keep_going = True
 
         else:
             logger.info(
-                "Columns were not added as they do not increase score. Finishing\n"
+                "Columns were not %s as they do not improve the score. Finishing\n",
+                "added" if fwd else "removed",
             )
             keep_going = False
 
-        if len(tracker_cols) == len(X.columns):
-            logger.info("All columns were added. Finishing\n")
+        # Finish conditions because of limits
+        if all(current_mask):
+            logger.info(
+                "All columns were %s. Finishing.\n", "added" if fwd else "removed"
+            )
             keep_going = False
 
-        return_data.append((best_comb_cols, best_comb_score))
+        elif self.max_cols and current_mask.sum() >= self.max_cols:
+            logger.info("Max columns %s reached. Finishing.\n", self.max_cols)
+            keep_going = False
 
-    return return_data
+        return keep_going, tracker_score, current_mask
+
+    def _get_combs(self, set_size, combs, include_empty=False):
+        l_comb = [
+            combinations(list(range(0, set_size)), x)
+            for x in range((0 if include_empty else 1), combs + 1)
+        ]
+
+        return chain.from_iterable(l_comb)
+
+    def _get_best_columns(self, X, y, estimator, rounding, comb, mask):
+        logger.setLevel(self.verbose)  # needed for delayed
+
+        try:
+            check_is_fitted(estimator)
+        except NotFittedError:
+            pass
+        else:
+            raise ValueError("Estimator was fitted already")
+
+        idx_not_processed = np.flatnonzero(~mask)
+        idx_comb_to_eval = idx_not_processed[comb]
+
+        if self.direction == "forward":
+            mask_candidate = mask.copy()
+        else:
+            mask_candidate = ~mask.copy()
+
+        # To be comptaible with both forward and backward
+        mask_candidate[idx_comb_to_eval] = not all(mask_candidate[idx_comb_to_eval])
+
+        # Did we calculated this already?
+        saved_score = self._candidates_history.get(
+            frozenset(np.flatnonzero(mask_candidate)), None
+        )
+
+        if saved_score:
+            score = saved_score
+        else:
+            if sum(mask_candidate) == 0:
+                # For backward, it might remove all columns for some candidates, and won't fit.
+                score = 0
+            else:
+                estimator.fit(X[:, mask_candidate], y)
+                score = round(estimator.best_score_, rounding)
+
+        logger.debug(
+            "Score %s checking %s full combination: %s %s",
+            score,
+            self._get_all_features_in()[idx_comb_to_eval],
+            self._get_all_features_in()[mask_candidate],
+            "* already calculated" if saved_score else "",
+        )
+
+        return score, idx_comb_to_eval
+
+    # this is an utility function to get the names of the
+    # columns passed
+    # it works with numpy and dataframes (leverage some
+    # sklearn functionality).
+    def _get_all_features_in(self):
+        return _check_feature_names_in(self)
+
+    def _get_support_mask(self):
+        return self.mask_
+
+    @property
+    def seq_columns_selected_(self):
+        # todo if fitted...
+        # How to act on this when returned (asuming ret), options:
+        # (1) pd.DataFrame(ret, columns=['a', 'b']) # Pretty printer
+        # (2) np.concatenate([x[1] for x in ret]) # Get all columns
+        return self.seq_cols_added_

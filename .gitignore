@@ -1,3 +1,8 @@
+# Others
+sandbox.ipynb
+*.csv
+*.xls*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -142,5 +147,3 @@ dmypy.json
 # MacOS
 .DS_Store
 
-# Others
-sandbox.ipynb
