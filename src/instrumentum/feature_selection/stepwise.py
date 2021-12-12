@@ -11,7 +11,7 @@ from sklearn.model_selection import check_cv
 from sklearn.utils.validation import _check_feature_names_in, check_is_fitted
 
 from instrumentum.utils._decorators import timeit
-from instrumentum.utils.validation import check_jobs
+from instrumentum.utils.utils import check_jobs, get_combs
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
 
             n_cols_remaining = sum(~current_mask)
             n_combs_ = self._get_n_combs(current_mask)
-            combs = list(self._get_combs(n_cols_remaining, n_combs_))
+            combs = get_combs(set_size=n_cols_remaining, combs_to=n_combs_)
 
             logger.info("Remaining columns to test: %s", n_cols_remaining)
             logger.info("Combinations to test: %s", len(combs))
@@ -96,7 +96,7 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
                     y,
                     estimator=clone(self.estimator),
                     rounding=self.rounding,
-                    comb=list(comb),
+                    comb=comb,
                     mask=current_mask,
                 )
                 for comb in combs
@@ -192,14 +192,6 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
 
         return keep_going, tracker_score, current_mask
 
-    def _get_combs(self, set_size, combs, include_empty=False):
-        l_comb = [
-            combinations(list(range(0, set_size)), x)
-            for x in range((0 if include_empty else 1), combs + 1)
-        ]
-
-        return chain.from_iterable(l_comb)
-
     def _get_best_columns(self, X, y, estimator, rounding, comb, mask):
         logger.setLevel(self.verbose)  # needed for delayed
 
@@ -211,7 +203,7 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
             raise ValueError("Estimator was fitted already")
 
         idx_not_processed = np.flatnonzero(~mask)
-        idx_comb_to_eval = idx_not_processed[comb]
+        idx_comb_to_eval = np.take(idx_not_processed, comb)
 
         if self.direction == "forward":
             mask_candidate = mask.copy()
