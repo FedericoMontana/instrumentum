@@ -78,14 +78,16 @@ class DistAnalyzer:
 
             cuts = pd.cut(f[~mask_n][col], bins=bins, labels=False, include_lowest=True)
 
-            a = f[~mask_n].groupby(cuts, as_index=False).agg({col: "count"})
-            b = (
-                f[~mask_n & mask_event]
-                .groupby(cuts, as_index=False)
-                .agg({col: "count"})
-            )
+            # Important, the index of the cuts must be maintained, in case a bin is zero
+            # parameter no index will complicate things
+            a = f[~mask_n].groupby(cuts).agg({col: "count"})
+            b = f[~mask_n & mask_event].groupby(cuts).agg({col: "count"})
             info["event_rate"] = (b / a)[col].values
             info["bin_%"] = (a / sum(~mask_n))[col].values
+
+            # if a bin is zero, previous division sends a nan
+            info["event_rate"][np.isnan(info["event_rate"])] = 0
+            info["bin_%"][np.isnan(info["bin_%"])] = 0
 
             ## Nans, mejorar esto!
             if sum(mask_n) > 0:
