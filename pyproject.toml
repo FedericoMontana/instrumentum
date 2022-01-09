@@ -3,7 +3,7 @@ version_variable = "pyproject.toml:version"
 
 [tool.poetry]
 name = "instrumentum"
-version = "0.8.0"
+version = "0.8.1"
 description = "General utilities for data science projects"
 authors = ["Federico Montanana"]
 license = "MIT"
@@ -19,6 +19,7 @@ optuna = "^2.10.0"
 xgboost = "^1.4.2"
 lightgbm = "^3.3.0"
 catboost = "^1.0.0"
+optbinning = "^0.13.0"
 
 [tool.poetry.dev-dependencies]
 ipykernel = "^6.4.1"
