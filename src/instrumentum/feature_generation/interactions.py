@@ -101,8 +101,6 @@ class Interactions(BaseEstimator, TransformerMixin):
 
         X = self._validate_data(X, order="F", dtype=FLOAT_DTYPES, reset=False)
 
-        self.names_ = _check_feature_names_in(self)
-
         # To hold the interactions
         X_ = np.empty(shape=(len(X), len(self.interactions_)), dtype=X.dtype)
         # To hold the names of the interactions

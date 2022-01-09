@@ -205,13 +205,11 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
         idx_not_processed = np.flatnonzero(~mask)
         idx_comb_to_eval = np.take(idx_not_processed, comb)
 
-        if self.direction == "forward":
-            mask_candidate = mask.copy()
-        else:
-            mask_candidate = ~mask.copy()
+        mask_candidate = mask.copy()
+        mask_candidate[idx_comb_to_eval] = True
 
-        # To be comptaible with both forward and backward
-        mask_candidate[idx_comb_to_eval] = not all(mask_candidate[idx_comb_to_eval])
+        if self.direction == "backward":
+            mask_candidate = ~mask_candidate
 
         # Did we calculated this already?
         saved_score = self._candidates_history.get(
