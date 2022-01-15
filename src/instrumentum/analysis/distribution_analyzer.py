@@ -24,6 +24,13 @@ class DistAnalyzer:
         else:
             self.frame_names = ["Dataset " + str(x) for x in range(len(frames))]
 
+        if target and target not in self.common_cols:
+            raise ValueError("Target not included in all dataframes")
+
+    @property
+    def comm_columns(self):
+        return list(self.common_cols)
+
     def get_bins_info_2(self, col):
 
         ret = {}
@@ -150,91 +157,139 @@ class DistAnalyzer:
 
         return analysis_input
 
-    def plot_density(self, col):
+    def _plot_individual_distributions(
+        self, target, col=None, pal="husl", sd_cutoff=2.5
+    ):
 
-        nrows = len(self.frames)
-        fig, axs = plt.subplots(ncols=2, nrows=nrows, figsize=(15, 5))
-        colors = sns.color_palette(None, len(self.frame_names))
+        colors = sns.color_palette(pal, len(self.frames))
+        dff = pd.DataFrame()
 
-        axs[0].set_title("Possitive cases")
-        axs[1].set_title("Negative cases")
+        # Let's create a single dataframe so we can use
+        # seaborn and hue
+        for con, d in enumerate(self.frames):
+            r = d.copy()
+            r = r[abs(r[col]) < r[col].mean() + r[col].std() * sd_cutoff]
+            r["frame"] = self.frame_names[con]
+            dff = dff.append(pd.DataFrame(r), ignore_index=True)
 
-        # ###
-        # dff = pd.DataFrame()
-        # for e, f in enumerate(self.frames):
-        #     a = f[[col, self.target]].copy()
-        #     a["hue"] = self.frame_names[e]
-        #     dff = dff.append(
-        #         a.loc[a[self.target] == self.target_true],
-        #         ignore_index=True,
-        #     )
+        ncols = 3
+        nrows = 2
+        fig, axs = plt.subplots(ncols=ncols, nrows=2, figsize=(6 * ncols, 7 * nrows))
 
-        # sns.histplot(
-        #     data=dff,
-        #     x=col,
-        #     hue="hue",
-        #     # kde=True,
-        #     stat="density",
-        #     ax=axs[2],
-        #     alpha=0.5,
-        #     # shade=True,
-        # )
+        sns.violinplot(
+            x="frame",
+            y=col,
+            data=dff,
+            hue=target,
+            ax=axs[0, 0],
+            split=True,
+            palette=pal,
+        )
+        axs[0, 0].set_title("Violin Plot")
 
-        ###
-        for x, f in enumerate(self.frames):
-            sns.kdeplot(
-                f.loc[f[self.target] == self.target_true][col],
-                label=self.frame_names[x] + "__" + str(self.target_true),
-                color=colors[x],
-                ax=axs[0],
-            )
-            axs[0].axvline(
-                f.loc[f[self.target] == self.target_true][col].mean(),
-                ls="--",
-                color=colors[x],
-            )
-            axs[0].axvline(
-                f.loc[f[self.target] == self.target_true][col].mode()[0],
-                ls=":",
-                color=colors[x],
-            )
+        sns.boxplot(x="frame", y=col, data=dff, hue=target, ax=axs[0, 1], palette=pal)
+        axs[0, 1].set_title("Box Plot")
 
-            sns.kdeplot(
-                f.loc[f[self.target] != self.target_true][col],
-                label=self.frame_names[x],
-                color=colors[x],
-                ax=axs[1],
-            )
-            axs[1].axvline(
-                f.loc[f[self.target] != self.target_true][col].mean(),
-                ls="--",
-                color=colors[x],
-            )
-            axs[1].axvline(
-                f.loc[f[self.target] != self.target_true][col].mode()[0],
-                ls=":",
-                color=colors[x],
-            )
+        sns.stripplot(
+            x="frame",
+            y=col,
+            data=dff,
+            hue=target,
+            ax=axs[0, 2],
+            s=1,
+            dodge=True,
+            jitter=True,
+            palette=pal,
+        )
+        axs[0, 2].set_title("Strip Plot")
 
-        line_solid = mlines.Line2D([], [], color="black", linestyle="--", label="Mean")
-        line_dashed = mlines.Line2D([], [], color="black", linestyle=":", label="Mode")
+        def tick(ax, label, rotation=0):
+            ax.set_title(label)
+            ax.xaxis.set_ticks(ax.get_xticks())
+            ax.set_xticklabels(ax.get_xticks(), rotation=rotation)
 
-        handles, labels = plt.gca().get_legend_handles_labels()
+        mask_true = (
+            dff[target] == self.target_true
+            if target
+            else np.full((len(dff)), True, dtype=bool)
+        )
 
-        plt.legend(handles=handles + [line_dashed] + [line_solid])
+        ax_p = axs[1, 0]
+        ax_n = axs[1, 1]
+
+        if target == None or len(self.frames) == 1:
+            ax_large = plt.subplot2grid((2, 3), (1, 0), colspan=2)
+            ax_p = ax_n = ax_large
+
+        sns.kdeplot(
+            x=col,
+            data=dff[mask_true],
+            ax=ax_p,
+            linewidth=2,
+            label="Possitive Events" if target else None,  # hue will provide, if set
+            hue="frame" if len(self.frames) > 1 else None,
+            common_norm=False,
+            fill=True,
+            palette=pal,
+        )
+        ax_p.grid()
+
+        sns.kdeplot(
+            x=col,
+            label="Negative Events" if target else None,  # hue will provide, if set
+            data=dff[~mask_true],
+            ax=ax_n,
+            linewidth=2,
+            hue="frame" if len(self.frames) > 1 else None,
+            common_norm=False,
+            fill=True,
+            palette=pal,
+        )
+        ax_n.grid()
+
+        sns.ecdfplot(
+            x=col,
+            hue="frame" if len(self.frames) > 1 else None,
+            label="Possitive Events" if target else None,
+            data=dff[mask_true],
+            ax=axs[1, 2],
+            linewidth=3,
+            palette=pal,
+        )  # , path_effects=path)
+        axs[1, 2].grid()
+
+        if (
+            len(self.frames) == 1 and target
+        ):  # will show the labels, otherwise not show hue? workaround
+            ax_p.legend()
+            ax_n.legend()
+            axs[1, 2].legend()
+
+        if len(self.frames) == 1 or target is None:
+            tick(ax_large, "Distribution of Observations", 45)
+            tick(axs[1, 2], "Cumulative Observations", 45)
+        else:
+            tick(ax_p, "Distribution of Positive Events", 45)
+            tick(ax_n, "Distribution of Negative Events", 45)
+            tick(axs[1, 2], "Cumulative Posstive Events", 45)
+
+        fig.suptitle(
+            "Distribution Analysis"
+            + (" With target" if target else " Without Target")
+            + " "
+            + col,
+            fontsize=25,
+        )
         plt.show()
 
-    def plot_binning(self, col):
+    def _plot_bins(self, col, pal):
 
         bins = self.get_bins_info_2(col)
         # len(bins['bins']) must be equal to len(frames)
 
-        colors = sns.color_palette(None, len(bins["bins"]))
+        colors = sns.color_palette(pal, len(bins["bins"]))
         fig, ax1 = plt.subplots(figsize=(12, 8))
 
-        # there should be a more elegant way of doing this
-        # Tried with matplotlib directly but it was too complicated to center things
-        # So I'm creating a dataframe just to plot the barplot
         dff = pd.DataFrame()
         for con, d in enumerate(bins["bins"]):
             r = d.copy()
@@ -243,28 +298,12 @@ class DistAnalyzer:
             r["bin_%"] = r["bin_%"] * 100
             dff = dff.append(pd.DataFrame(r), ignore_index=True)
 
-        plt.figure(figsize=(10, 6))
-        sns.barplot(x="indice", ax=ax1, hue="hue", y="bin_%", data=dff)
-
-        # #barWidth = 0.25
-
-        # for e, bin in enumerate(bins['bins']):
-        #     print(bin)
-        #     value = bin['bin_%'] * 100
-
-        #     if e==0:
-        #          r = np.arange(len(value))
-        #     else:
-        #         r = [x + width for x in r]
-
-        #     ax1.bar(r, value, width, color=colors[e], label=frame_names[e] + " obs % per bin")
+        sns.barplot(x="indice", ax=ax1, hue="hue", y="bin_%", data=dff, palette=pal)
 
         ax1.set_xlabel("Bin ID", fontsize=12)
         ax1.set_ylabel("Observations Percentage Per Bin", fontsize=13)
         ax1.yaxis.set_major_formatter(mtick.PercentFormatter())
         ax1.set_xticklabels(bins["splits_str"], rotation=60)
-        # plt.xticks(rotation=60)
-        # plt.xticks([r + width for r in range(len(value))], bins['splits_str'])
 
         ax2 = ax1.twinx()
 
@@ -303,21 +342,68 @@ class DistAnalyzer:
                     color=colors[e],
                 )
 
-        # line_solid = mlines.Line2D([], [], color='black', linestyle='--', label='Mean')
-        # line_dashed = mlines.Line2D([], [], color='black', linestyle=':',  label='Mode')
+        h1, _ = ax1.get_legend_handles_labels()
+        h2, _ = ax2.get_legend_handles_labels()
 
-        h1, l1 = ax1.get_legend_handles_labels()
-        h2, l2 = ax2.get_legend_handles_labels()
-
-        ax1.set_title(col + " binning analysis (event rate)", fontsize=20)
+        ax1.set_title("Event rate by bin")
         ax1.legend(handles=h1 + h2, bbox_to_anchor=(1.1, 1), loc="upper left")
+
+        fig.suptitle("Binning Analysis" + " " + col, fontsize=25)
+
         plt.show()
 
-    def get_analysis_columns(self, estimator=None, cols=None):
+    def _get_cols(self, cols):
+
+        if cols is not None:
+            if isinstance(cols, str):
+                cols = [cols]
+
+            if not isinstance(cols, list):
+                raise ValueError(
+                    "Cols paramter must be either a string or a list of strings"
+                )
 
         cols_to_iterate = (
             self.common_cols if not cols else self.common_cols.intersection(set(cols))
         )
+
+        if len(cols_to_iterate) < 1:
+            raise ValueError("There are no columns found in all frames")
+
+        if cols is not None:
+            not_found = set(cols) - set(cols_to_iterate)
+            if len(not_found) > 0:
+                raise ValueError("These columns were not found", list(not_found))
+
+        return cols_to_iterate
+
+    def show_distribution_plots(
+        self, cols=None, palette="husl", exclude_target=False, sd_cutoff=2.5
+    ):
+        cols_to_iterate = self._get_cols(cols)
+
+        if exclude_target is True and self.target is None:
+            raise ValueError("No target provided in init to exclude")
+
+        target_to_use = self.target if not exclude_target else None
+
+        for c in cols_to_iterate:
+            self._plot_individual_distributions(
+                col=c, pal=palette, target=target_to_use, sd_cutoff=sd_cutoff
+            )
+
+    def show_binning_plots(self, cols=None, palette="husl"):
+        cols_to_iterate = self._get_cols(cols)
+
+        if self.target is None:
+            raise ValueError("No target provided in init. Needed to plot the bins")
+
+        for c in cols_to_iterate:
+            self._plot_bins(col=c, pal=palette)
+
+    def get_analysis_columns(self, estimator=None, cols=None):
+
+        cols_to_iterate = self._get_cols(cols)
 
         for y, c in enumerate(cols_to_iterate):
 
@@ -338,6 +424,3 @@ class DistAnalyzer:
                 analysis[self.frame_names[x]] = info.copy()
 
             print(pd.DataFrame(analysis))
-
-            self.plot_density(c)
-            self.plot_binning(c)
