@@ -60,7 +60,7 @@ class DistAnalyzer:
             splits_str.append(beg + " to " + end)
 
         ret["splits_str"] = splits_str
-        ret["splits_str"].append("NaN")
+        ret["splits_str"].append("Missing")
 
         # TODO
         # El bining usando optimalbinning (ver la funcion origninal, no la 2), funcionaba bien
@@ -80,10 +80,10 @@ class DistAnalyzer:
 
             # Important, the index of the cuts must be maintained, in case a bin is zero
             # parameter no index will complicate things
-            a = f[~mask_n].groupby(cuts).agg({col: "count"})
-            b = f[~mask_n & mask_event].groupby(cuts).agg({col: "count"})
+            a = f.groupby(cuts).agg({col: "count"})
+            b = f[mask_event].groupby(cuts).agg({col: "count"})
             info["event_rate"] = (b / a)[col].values
-            info["bin_%"] = (a / sum(~mask_n))[col].values
+            info["bin_%"] = (a / len(f))[col].values
 
             # if a bin is zero, previous division sends a nan
             info["event_rate"][np.isnan(info["event_rate"])] = 0
@@ -152,19 +152,41 @@ class DistAnalyzer:
 
     def plot_density(self, col):
 
-        fig, axs = plt.subplots(ncols=2, figsize=(15, 5))
+        nrows = len(self.frames)
+        fig, axs = plt.subplots(ncols=2, nrows=nrows, figsize=(15, 5))
         colors = sns.color_palette(None, len(self.frame_names))
 
         axs[0].set_title("Possitive cases")
         axs[1].set_title("Negative cases")
 
+        # ###
+        # dff = pd.DataFrame()
+        # for e, f in enumerate(self.frames):
+        #     a = f[[col, self.target]].copy()
+        #     a["hue"] = self.frame_names[e]
+        #     dff = dff.append(
+        #         a.loc[a[self.target] == self.target_true],
+        #         ignore_index=True,
+        #     )
+
+        # sns.histplot(
+        #     data=dff,
+        #     x=col,
+        #     hue="hue",
+        #     # kde=True,
+        #     stat="density",
+        #     ax=axs[2],
+        #     alpha=0.5,
+        #     # shade=True,
+        # )
+
+        ###
         for x, f in enumerate(self.frames):
             sns.kdeplot(
                 f.loc[f[self.target] == self.target_true][col],
                 label=self.frame_names[x] + "__" + str(self.target_true),
                 color=colors[x],
                 ax=axs[0],
-                shade=True,
             )
             axs[0].axvline(
                 f.loc[f[self.target] == self.target_true][col].mean(),
@@ -182,7 +204,6 @@ class DistAnalyzer:
                 label=self.frame_names[x],
                 color=colors[x],
                 ax=axs[1],
-                shade=True,
             )
             axs[1].axvline(
                 f.loc[f[self.target] != self.target_true][col].mean(),
@@ -278,7 +299,7 @@ class DistAnalyzer:
                 ax2.axhline(
                     mean_target,
                     ls="--",
-                    label=self.frame_names[e] + " mean event rate (w/o nan)",
+                    label=self.frame_names[e] + " mean event rate (w/o miss)",
                     color=colors[e],
                 )
 
