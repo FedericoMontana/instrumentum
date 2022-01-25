@@ -219,6 +219,7 @@ class DistAnalyzer:
 
         if target == None or len(self.frames) == 1:
             ax_large = plt.subplot2grid((2, 3), (1, 0), colspan=2)
+            ax_large.grid()
             ax_p = ax_n = ax_large
 
         sns.kdeplot(
