@@ -16,4 +16,4 @@ jobs:
         uses: JRubics/poetry-publish@v1.10
         with:
           pypi_token: ${{ secrets.PYPI_TOKEN }}
-          extra_build_dependency_packages: "libblas3 liblapack3 liblapack-dev libblas-dev"
+          extra_build_dependency_packages: "libblas3 liblapack3 liblapack-dev libblas-dev gfortran"
