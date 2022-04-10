@@ -1,5 +1,4 @@
 import logging
-from itertools import chain, combinations
 
 import numpy as np
 from joblib import Parallel, delayed
