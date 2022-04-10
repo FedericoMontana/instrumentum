@@ -22,7 +22,6 @@ catboost = "^1.0.0"
 optbinning = "^0.13.0"
 
 [tool.poetry.dev-dependencies]
-python = ">=3.9,<3.11"
 ipykernel = "^6.4.1"
 python-semantic-release = "^7.19.2"
 black = "^21.9b0"
