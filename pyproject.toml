@@ -29,6 +29,7 @@ black = "^21.9b0"
 ipython = {extras = ["notebook"], version = "^7.29.0"}
 isort = "^5.10.1"
 
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
