@@ -1,13 +1,5 @@
-import logging
-
 import optuna
 import optuna.integration.lightgbm as lgb
-from catboost import CatBoostClassifier
-from lightgbm import LGBMClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-from xgboost import XGBClassifier
 
 
 def _xgbclassifier_default(trial: optuna.trial.Trial):
@@ -127,11 +119,11 @@ def _decision_tree_regressor_default(trial: optuna.trial.Trial):
 
 
 optuna_param_disp = {
-    XGBClassifier.__name__: _xgbclassifier_default,
-    LGBMClassifier.__name__: _lgbmclassifier_default,
-    RandomForestClassifier.__name__: _random_forest_classifier_default,
-    CatBoostClassifier.__name__: _catboostclassifier_default,
-    DecisionTreeClassifier.__name__: _decision_tree_classifier_default,
-    LogisticRegression.__name__: _logistic_regresssion_classifier_default,
-    DecisionTreeRegressor.__name__: _decision_tree_regressor_default,
+    'XGBClassifier': _xgbclassifier_default, # XGBClassifier.__name__
+    'LGBMClassifier': _lgbmclassifier_default, #LGBMClassifier.__name__
+    'RandomForestClassifier': _random_forest_classifier_default, #RandomForestClassifier.__name__
+    'CatBoostClassifier': _catboostclassifier_default, #CatBoostClassifier.__name__
+    'DecisionTreeClassifier': _decision_tree_classifier_default, #DecisionTreeClassifier.__name__
+    'LogisticRegression': _logistic_regresssion_classifier_default, #LogisticRegression.__name__
+    'DecisionTreeRegressor': _decision_tree_regressor_default, #DecisionTreeRegressor.__name__
 }
