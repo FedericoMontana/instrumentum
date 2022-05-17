@@ -24,7 +24,7 @@ def dashboard_continuos_with_binary_target(
     palette="husl",
     target_true=1,
     cluster=None,
-    copy_dataframe=False,
+    copy_dataframe=True,
     verbose=logging.WARNING,
 ):
 
@@ -33,6 +33,12 @@ def dashboard_continuos_with_binary_target(
 
     if target_true not in df[y].unique():
         raise ValueError("Parameter target_true is not an actual value of y")
+
+    if copy_dataframe:
+        df = df.copy()
+
+    if cluster:
+        df[cluster] = df[cluster].astype("str")
 
     ncols = 3
     nrows = 3
@@ -169,6 +175,7 @@ def dashboard_continuos_with_binary_target(
         cluster=cluster,
         master_clust=master_clust,
         target_true=target_true,
+        palette=palette,
     )
 
     # fig.tight_layout()
@@ -204,6 +211,8 @@ def dashboard_categorical_with_binary_target(
     # Let's get started
     df = df[cols_received].copy() if copy_dataframe else df[cols_received]
     df[x] = df[x].astype("str")
+    if cluster:
+        df[cluster] = df[cluster].astype("str")
 
     df["freq"] = df.groupby(x)[x].transform("count")
     df = df.sort_values("freq", ascending=False).drop("freq", axis=1)
@@ -226,6 +235,7 @@ def dashboard_categorical_with_binary_target(
     ax = axs[0, 1]
     extra_legend_elements = []
     styles = {True: "solid", False: "dotted"}
+
     for c, t in enumerate(df[y].unique()):
         sns.ecdfplot(
             x=x,
@@ -273,7 +283,7 @@ def dashboard_categorical_with_binary_target(
     plot_categorical_with_binary_target(
         df,
         category=x,
-        target=y,
+        y=y,
         ax=ax_large,
         cluster=cluster,
         palette=palette,

@@ -18,7 +18,7 @@ from optbinning import OptimalBinning
 def plot_categorical_with_binary_target(
     df,
     category,
-    target,
+    y,
     ax,
     target_true=1,
     cluster=None,
@@ -29,7 +29,7 @@ def plot_categorical_with_binary_target(
 ):
 
     COL_GRP_ALL = "all"
-    COL_GRP_TARGET = "target"
+    COL_GRP_TARGET = "y"
 
     MISSING_VALUE = "Missing"
 
@@ -41,7 +41,7 @@ def plot_categorical_with_binary_target(
         cluster = None
         logging.warning("Only one category in cluster. Clustering visual removed")
 
-    cols_received = [category, target] + ([cluster] if cluster is not None else [])
+    cols_received = [category, y] + ([cluster] if cluster is not None else [])
     cols_to_groupby = ([cluster] if cluster else []) + [category]
 
     # Some Validations
@@ -59,7 +59,7 @@ def plot_categorical_with_binary_target(
     grp = pd.concat(
         [
             df.groupby(cols_to_groupby, sort=False).size(),
-            df[df[target] == target_true].groupby(cols_to_groupby, sort=False).size(),
+            df[df[y] == target_true].groupby(cols_to_groupby, sort=False).size(),
         ],
         axis=1,
     ).fillna(0)
@@ -189,6 +189,7 @@ def plot_categorical_with_binary_target(
     return ax
 
 
+# TODO: add validations for master cluster
 def plot_continuos_bin_with_binary_target(
     df,
     x,
@@ -233,83 +234,175 @@ def plot_continuos_bin_with_binary_target(
     df.sort_values(by=["category"], inplace=True)
 
     plot_categorical_with_binary_target(
-        df, category="category", target=y, cluster=cluster, ax=ax, palette=palette
+        df, category="category", y=y, cluster=cluster, ax=ax, palette=palette
     )
 
 
-if __name__ == "__main__":
+def plot_value_distribution(
+    df,
+    ax,
+    cluster=None,
+    y=None,
+    palette="husl",
+    call_back_pre_process=None,
+    remove_non_nan_cols=True,
+    values=[np.nan, pd.NA],
+):
 
-    if False:
-        df = pd.DataFrame(
-            {
-                "cluster": ["A", "A", "B", "B", "A", "B", "C", "C", "C", "A", "A", "A"],
-                "category": [
-                    "x",
-                    "y",
-                    "x",
-                    "x",
-                    "x",
-                    np.nan,
-                    "y",
-                    "z",
-                    np.nan,
-                    np.nan,
-                    "z",
-                    "z",
-                ],
-                "result": [0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0],
-            }
+    # These columns will be created and plotted:
+
+    # Without considering clusters, the average of % nan by variable
+    FULL_AVG_NAN = "FULL_AVG_NAN"
+
+    # The standard deviation there exists within the
+    # clusters of each column regarding % nan
+    # we can discover if there are differences among the clusters for same columns
+    CLUSTER_SD_NAN = "CLUSTER_SD_NAN"
+
+    # The average of the % nan for the clusters of each column
+    CLUSTER_AVG_NAN = "CLUSTER_AVG_NAN"
+
+    # If there are a y and no cluster, the SD of the % nan for each y value
+    # we can discover if there are differences in the amount of nan for
+    # the same column but different cluster
+    TARGET_SD_NAN = "TARGET_SD_NAN"
+
+    # If there are y and cluster, the average of TARGET_SD_NAN within each cluster
+    TARGET_SD_CLUSTER_AVG_NAN = "TARGET_SD_CLUSTER_AVG_NAN"
+
+    df = df.copy()
+
+    cols_to_nan = [x for x in df.columns if x not in [cluster, y]]
+    df[cols_to_nan] = df[cols_to_nan].isin(values) * 1
+
+    # Average by column, without considering clusters (will be used as the master)
+    final_df = df[cols_to_nan].T.mean(axis=1).rename(FULL_AVG_NAN)
+
+    if remove_non_nan_cols:
+        final_df = final_df[final_df > 0]
+
+    if cluster:
+
+        gby = df.groupby(cluster)[cols_to_nan].mean().T
+
+        gby[CLUSTER_SD_NAN] = gby.std(axis=1)
+        gby[CLUSTER_AVG_NAN] = gby.mean(axis=1)
+
+        final_df = pd.merge(final_df, gby, left_index=True, right_index=True)
+
+        if y:
+            # (1) Calculate the mean of nans by cluster and y
+            # (2) Calculate the STD by y (within each cluster)
+            # (3) Calculate the AVG of those STD by cluster
+            gby = (
+                df.groupby([cluster, y])
+                .mean()
+                .groupby(level=0)
+                .std()
+                .T.mean(axis=1)
+                .rename(TARGET_SD_CLUSTER_AVG_NAN)
+            )
+            final_df = pd.merge(final_df, gby, left_index=True, right_index=True)
+
+    if y:
+        gby = df.groupby(y).mean().T.std(axis=1).rename(TARGET_SD_NAN)
+        final_df = pd.merge(final_df, gby, left_index=True, right_index=True)
+
+    if call_back_pre_process:
+        final_df = call_back_pre_process(final_df, cluster, y)
+
+    if cluster:
+        melted = final_df.reset_index().melt(
+            id_vars="index", value_vars=df[cluster].unique()
+        )
+        x_val, y_val, hue_val = melted["index"], melted["value"], melted["variable"]
+    else:
+        x_val, y_val, hue_val = (
+            final_df.index,
+            final_df[FULL_AVG_NAN] if y else final_df.values,
+            None,
         )
 
-        f, (ax1, ax2) = plt.subplots(2, figsize=(15, 7))
+    sns.barplot(x=x_val, y=y_val, hue=hue_val, ax=ax, palette=palette)
+    ax.tick_params(axis="x", labelrotation=90)
+    ax.set(
+        ylabel="Percentage of nan",
+        xlabel=None,
+        title="Nan Analysys",
+    )
 
-        plot_categorical_with_binary_target(
-            df, cluster="cluster", category="category", target="result", ax=ax1
+    if not y and not cluster:
+        return ax
+
+    ## Lines
+
+    # I want to make sure that I use exactly the same xticks and in the same order
+    # as that placed in the barplot (I could assume that since I used the same dataframe)
+    # but just in case
+    df_lines = pd.DataFrame(
+        [tick.get_text() for tick in ax.get_xticklabels()], columns=["col"]
+    )
+    df_lines = df_lines.join(final_df, on="col").fillna(0)
+
+    handle_bar, _ = ax.get_legend_handles_labels()
+    handles = []
+    colors = sns.color_palette(palette)
+
+    ax_r = ax.twinx()
+
+    # at least one have to be due to the previous if return
+    lines_to_print = (
+        ["CLUSTER_SD_NAN", "TARGET_SD_CLUSTER_AVG_NAN"]
+        if cluster and y
+        else (["TARGET_SD_NAN"] if y else ["CLUSTER_SD_NAN"])
+    )
+
+    for count, line in enumerate(lines_to_print):
+        sns.lineplot(
+            data=df_lines,
+            x="col",
+            y=line,
+            linestyle="solid",
+            marker="o",
+            ax=ax_r,
+            color=colors[-count],
+            path_effects=[pe.Stroke(linewidth=2, foreground="black"), pe.Normal()],
         )
 
-        plot_categorical_with_binary_target(
-            df[df["cluster"] == "A"], category="category", target="result", ax=ax2
-        )
+        handles += [Line2D([0], [0], color=colors[-count], label=line)]
 
-        plt.show()
+    handles = handle_bar + handles
+    ax.legend(handles=handles, loc="upper right", bbox_to_anchor=(1.4, 1))
 
-    if True:
+    ax_r.set(ylabel="Standard Deviations")
 
-        np.random.seed(0)
+    return ax_r
 
-        df1 = pd.DataFrame()
-        df1["dist"] = np.random.normal(0, 20, size=1000)
-        df1["clust"] = "A"
-        df1["target"] = 0
-        df1_ = pd.DataFrame()
-        df1_["dist"] = np.random.normal(3, 30, size=200)
-        df1_["clust"] = "A"
-        df1_["target"] = 1
 
-        df2 = pd.DataFrame()
-        df2["dist"] = np.random.normal(3, 35, size=1000)
-        df2["clust"] = "B"
-        df2["target"] = 0
-        df2_ = pd.DataFrame()
-        df2_["dist"] = np.random.normal(2, 20, size=200)
-        df2_["clust"] = "B"
-        df2_["target"] = 1
+def plot_value_heatmap(
+    df,
+    values=[np.nan, pd.NA],
+):
+    df = df.copy()
+    df = df.isin(values) * 1
 
-        df3 = pd.DataFrame()
-        df3["dist"] = np.random.normal(50, 90, size=1000)
-        df3["clust"] = "C"
-        df3["target"] = 0
-        df3_ = pd.DataFrame()
-        df3_["dist"] = np.random.normal(55, 95, size=200)
-        df3_["clust"] = "C"
-        df3_["target"] = 1
+    bins_size = 100
+    n_bins = int(len(df) / bins_size)
 
-        df = pd.concat([df1, df1_, df2, df2_, df3, df3_], ignore_index=True)
+    n = df.groupby(pd.cut(df.index, n_bins)).sum()
 
-        df.loc[3, "dist"] = np.nan
-        f, ax = plt.subplots(figsize=(15, 7))
+    n = n / bins_size
+    n.clip(upper=1, inplace=True)
 
-        plot_continuos_bin_with_binary_target(
-            df, x="dist", cluster="clust", master_clust="A", y="target", ax=ax
-        )
-        plt.show()
+    g = sns.clustermap(
+        n,
+        cmap="RdYlGn_r",
+        col_cluster=True,
+        row_cluster=False,
+        # yticklabels=False,
+    )  # cbar_kws={'label': 'Missing Data'})
+
+    g.ax_col_dendrogram.set_title("Heatmap of value's occurrence")
+    # for a in g.ax_col_dendrogram.collections:
+    #     a.set_linewidth(1)
+    #     a.set_color("grey")

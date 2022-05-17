@@ -1,9 +1,34 @@
 import pandas as pd
+from scipy.stats import normaltest
 
 from instrumentum.analysis.dashboards import (
     dashboard_categorical_with_binary_target,
     dashboard_continuos_with_binary_target,
 )
+
+# 2 Standard Deviations from the Mean: 95%
+def remove_outliers(df, col, sd_cutoff=2, qr_cutoff=[1.5, 1.5]):
+
+    _, p = normaltest(df[~df[col].isna()][col])
+
+    if p > 0.2:  # quite permissive
+        print(col + " looks normal. Using Standard Deviation")
+        outliers = abs(df[col]) >= df[col].mean() + df[col].std() * sd_cutoff
+
+    else:
+        print(col + " looks skewed. Using quartiles")
+        Q1 = df[col].quantile(0.25)
+        Q3 = df[col].quantile(0.75)
+        IQR = Q3 - Q1
+
+        outliers = (df[col] < (Q1 - qr_cutoff[0] * IQR)) | (
+            df[col] > (Q3 + qr_cutoff[1] * IQR)
+        )
+
+    n_removed = len(df) - len(df[~outliers])
+    print("Outliers removed: ", n_removed, " %: ", n_removed / len(df))
+
+    return df[~outliers]
 
 
 class ColumnType:
@@ -15,7 +40,7 @@ class ColumnType:
 
 
 class DistAnalyzer:
-    def __init__(self, df, y=None, y_true=1, y_type=None, cluster=None):
+    def __init__(self, df, y=None, y_true=None, y_type=None, cluster=None):
 
         self.df = df
 
@@ -79,22 +104,28 @@ class DistAnalyzer:
         nunique = self.df[col].nunique()
 
         if nunique <= 2:
-            print("Column looks binary")
+            print(col + " looks binary")
             return ColumnType.CATEGORY_BINARY
 
         if nunique < 20 or nunique / self.df[col].count() < 0.01:
-            print("Column looks categorical")
+            print(col + " looks categorical")
             return ColumnType.CATEGORY_GENERAL
 
-        print("Looks continuos")
+        print(col + " looks continuos")
         return ColumnType.CONTINUOS
 
-    def show_dashboard(self, xs=None, palette="husl"):
+    def show_dashboard(self, xs=None, keep_outliers=True, palette="husl"):
 
         for x in self._get_cols(xs):
 
+            # Let's create a copy to make sure the original is not affected. Only use important columns
+            df = self.df[self.df.columns.intersection([x, self.y, self.cluster])].copy()
+
             # get_type_of_column
             x_type = self._get_col_type(x)
+
+            if not keep_outliers and x_type == ColumnType.CONTINUOS:
+                df = remove_outliers(df, x)
 
             # X is continuos, and Y is binary
             if (
@@ -102,7 +133,7 @@ class DistAnalyzer:
                 and self.y_type == ColumnType.CATEGORY_BINARY
             ):
                 dashboard_continuos_with_binary_target(
-                    self.df, x=x, y=self.y, cluster=self.cluster
+                    df, x=x, y=self.y, cluster=self.cluster
                 )
 
             # X is categorical, and Y is binary
@@ -111,7 +142,7 @@ class DistAnalyzer:
                 and self.y_type == ColumnType.CATEGORY_BINARY
             ):
                 dashboard_categorical_with_binary_target(
-                    self.df, x=x, y=self.y, cluster=self.cluster
+                    df, x=x, y=self.y, cluster=self.cluster
                 )
 
     # def get_analysis_columns(self, estimator=None, cols=None):
