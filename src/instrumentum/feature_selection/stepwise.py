@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 # TODO:
 # receive a function for scoring. And add the scoring as a method
-# agregar una historia de casos para que no vuelva a verificar casos ya verificados
 # Document the full shit
 class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
     def __init__(
