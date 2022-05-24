@@ -1,9 +1,0 @@
-{
-  "python.pythonPath": "/Users/federico/Library/Caches/pypoetry/virtualenvs/instrumentum-X6s00uqR-py3.8/bin/python",
-  "files.exclude": {
-    "**/__pycache__": true,
-    "**/__pycache__.*": true,
-    "**/.ipynb_checkpoints": true,
-    "**/.ipynb_checkpoints.*": true
-  }
-}
