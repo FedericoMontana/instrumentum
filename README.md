@@ -9,6 +9,7 @@ The goal of this repository is to consolidate functionalities that are tipically
 The classes created in instrumentum implement sklearn interfaces, which makes it easier to work with them since the general familiarity with sklearn design. Classes use parallelism whenever possible to speed-up the execution time.
 
 
+
 ## Table of Content <!-- omit in toc -->
   - [Feature Selection](#feature-selection)
     - [Dynamic Stepwise](#dynamic-stepwise)
