@@ -9,12 +9,14 @@ The goal of this repository is to consolidate functionalities that are tipically
 The classes created in instrumentum implement sklearn interfaces, which makes it easier to work with them since the general familiarity with sklearn design. Classes use parallelism whenever possible to speed-up the execution time.
 
 
+
 ## Table of Content <!-- omit in toc -->
   - [Feature Selection](#feature-selection)
     - [Dynamic Stepwise](#dynamic-stepwise)
     - [Clustering](#clustering)
   - [Model Tuning](#model-tuning)
   - [Features Interaction](#features-interaction)
+  - [Dashboards & plots](#dashboards-&-plots)
   - [Contributing](#contributing)
   - [License](#license)
   - [Credits](#credits)
@@ -49,17 +51,16 @@ X, y = df[["x0", "x1", "x2"]], df["y"]
 ```
 Plotting the correlation of the matrix, clearly shows that individually, only x0 presents a relationship with y:
 
-<img src="images/correlation.png"> 
+<img src="images/correlation.png" width=60% height=60%> 
 
 If the classic forward stepwise is used in this scenario, and assuming that the stepwise stops when there is no improvement (which doesn't make sense in this small dataset, but it does in gigantic ones), the two interactions will not be discovered. 
 The class *DynamicStepwise* in this library allows to keep adding/removing predictors iteratively, with an arbitrary number of predictors at each iteration (parameter *combo*). When the number is 1, it is the tipical stepwise, if it is largen than 1 it becomes dyanmic and will try all combinations of predictors up to that number. 
-If, for example, combo is equal to 3, the library will try all possible combinations between 1, 2 and 3 variables from the set of variables not yet added, and will select the best combination of all those which added to the already selected yield the best result. And will keep doing so until the end condition is met (end condition is highly parameterized)
+If, for example, combo is equal to 3, the library will try all possible combinations between 1, 2 and 3 variables from the set of variables not yet added, and will select the best combination of all those which added to the already selected yield the best result. And will keep adding the next best 3 combinations until the end condition is met (end condition is highly parameterized).
 
 Continuing with the previous dataset example, if DynamicStepwise is run with just 1 combination at each time (and so becoming the classic stepwise), it will discover only x0:
 
 ```python
 combs = 1
-rounding = 2
 
 stepw = DynamicStepwise(
     estimator=os,
@@ -100,8 +101,7 @@ The score obtained by using x0 is only 0.52.
 If we make a simple change to the parameters, and indicate that the combos to be evaluated (i.e. how many combinations of remaining predictors to evaluate at each step) is 2:
 
 ```python
-combs = 1
-rounding = 2
+combs = 2
 ```
 
 The output is:
@@ -131,19 +131,19 @@ Forward Best Features:  ['x0' 'x1' 'x2']
 1   0.87          [x0]
 ```
 
-The prediction power increased to 0.87 and both x1 and x2 were selected (correctly in the first iteration, as they both are the two combinations that yield the best combination).
+The prediction power increased to 0.87 and both x1 and x2 were selected correctly in the first iteration, as they both are the two combinations that yield the best combination.
 
 Indeed, the larger the combo parameter, the best selection of features, and the exponential increase in time it will take to complete. There is a tradeoff between prediction power and performance, tipically a value of 2 or 3 for the combo would be enough. The combo can be defined as large as the total number of predictors, which will cause the algorithm to guarantee to find the best predictors, but it will do so by evaluating absolutely all possible combinations, which becomes infeasible with any dataset with more than a handful of predictors.
 
 
 ## Clustering Selection
 
-One of the promises of a good set of predictors, is that they have to be highly correlated to the target, without having correlation among them.
+One of the promises of a good set of predictors, is that they have to be highly correlated to the target, without having correlation among themselves.
 The class *ClusterSelection* tries to obtain that ideal scenario, which is desirable in datasets with high dimensionality, by clustering all predictors based on their similarity ("similarity" can be parameterized as a correlation matrix, with Pearson as the default). Once the clusters are identified the class allows to select the best predictors within each. The selection of best predictors (be it one by cluster or n) can be performed using *DynamicStepwise*.
 
 *DynamicStepwise* can be passed to *ClusterSelection* with a pre configuration of n combos, and by doing so it will get the best n combinations of variables within each cluster. Combining *DynamicStepwise* with *ClusetrSelection* produces a sophisticated pipeline that is heuristic in nature yet it yields results close the the global optimal solution. 
 
-One of the key parameters of this class is how to find the clusters once the correlation matrix is created. There are many techniques to form flat clusters, ClusterSelection uses [fcluster](https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.fcluster.html) method behind the scene, where pameter *t* is passed over to this function from the class.
+One of the key parameters of this class is how to find the clusters once the correlation matrix is created. There are many techniques to form flat clusters, *ClusterSelection* uses [fcluster](https://docs.scipy.org/doc/scipy/reference/generated/scipy.cluster.hierarchy.fcluster.html) method behind the scene, where pameter *t* is passed over to this function from the class.
 Roughly, the parameter t can define a threshold or a fixed number of clusters. If using a threshold, a dendogram analysis can help visualize the best possible "cut" line. See the docs for details. In this plot the dendogram presents the clusters created, and the two selected due to the threshold defined at 0.8
 
 <img src="images/dendogram.png"> 
@@ -218,7 +218,28 @@ Depending on the verbosity, the output can provide a large degree of information
 | 5   | 2   | 3   | 7       | 10       | 8       | 15       | 5       | 6        | 10            | 30              |
 | 1   | 2   | 3   | 3       | 2        | 4       | 3        | 5       | 6        | 6             | 6               |
 
-<br>
+# Dashboards & Plots #
+
+*instrumentum* library includes several visuals that can facilitate the quick analysis of predictors. Visuals are created as standalone plots, as well as dashboards that include several plots. There is also a class *DistAnalyzer* which intends to automate the creation of dashboards, by automatically identifying the type of variable (categorical, continuos), the type of target (binary, categorical, continuos) and draw the most appropiate dashboard.
+
+All the plots, dashboards and classes created in instrumentum tipically include the following parameters:
+- x: the predictor to be plotted 
+- y: the targe. If included, it might try to plot visuals including the x and y together
+- cluster: this parameter groups rows that are logically connected. For example, if we have a distribution generated at time a, and another at time a', that value can be used to separate those entries and have visual comparison on them (think of "hue" in seaborn)
+- target_true: for those cases that y is binary, it indicates what is the true value (defaul is 1)
+
+Read the extensive examples in the [docs](https://github.com/FedericoMontana/instrumentum/blob/master/docs/examples_plots.ipynb)
+
+Advanced dashboards can be generated with a single line of code, which visualize the different perspectives of a predictor:
+
+<img src="images/plot_01.png"> 
+
+Full datasets can be analyzied to identy particular patterns, for example the existence of null ("nans") values:
+
+<img src="images/plot_02.png"> 
+<img src="images/plot_03.png"> 
+
+Visuals are constantly being enhanced. See the docs for details.
 
 ## Contributing
 
