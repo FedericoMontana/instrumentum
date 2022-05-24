@@ -3,7 +3,7 @@
 **General utilities for data science projects**
 
 
-The goal of this repository is to consolidate functionalities that are tipically not found in other packages, and can facilitate some steps during a data science project. 
+The goal of this repository is to provide functionalities that are tipically not found in other packages, and can facilitate some steps during a data science project. 
 
 
 The classes created in instrumentum implement sklearn interfaces, which makes it easier to work with them since the general familiarity with sklearn design. Classes use parallelism whenever possible to speed-up the execution time.
