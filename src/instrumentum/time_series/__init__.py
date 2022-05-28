@@ -1,5 +1,5 @@
 
-    
+
 def ts_print(df, col_target, col_key, value_true=1):
     """ Print a Pandas dataframe with the required format
 
@@ -14,8 +14,8 @@ def ts_print(df, col_target, col_key, value_true=1):
     value_true : int, optional
         [description], by default 1
     """
-    
-    
+
+
     # Let's get all the customers that had at least one open card (drop duplicates; same cust can appear more than once)
     keys_pos_unique = df.loc[df[col_target] == value_true][col_key].drop_duplicates(
         keep="first"
