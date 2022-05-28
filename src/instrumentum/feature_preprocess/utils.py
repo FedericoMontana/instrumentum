@@ -95,7 +95,9 @@ def rescue_non_numeric(df_, nan_code=None):
         elif df[col].nunique() < 30:
             print("--  Label Encoded")
             lb_style = preprocessing.LabelEncoder()
-            df[col] = lb_style.fit_transform(df[col].astype("str")).astype("int64")
+            df[col] = lb_style.fit_transform(df[col].astype("str")).astype(
+                "int64"
+            )
         else:
             print("-- Remains as object")
 

@@ -42,7 +42,9 @@ def dashboard_continuos_with_binary_target(
 
     ncols = 3
     nrows = 3
-    fig, axs = plt.subplots(ncols=ncols, nrows=nrows, figsize=(6 * ncols, 5 * nrows))
+    fig, axs = plt.subplots(
+        ncols=ncols, nrows=nrows, figsize=(6 * ncols, 5 * nrows)
+    )
 
     # sns.barplot(
     #     data=df,
@@ -107,7 +109,10 @@ def dashboard_continuos_with_binary_target(
             common_norm=False,
             palette=palette,
             # legend=False,
-            path_effects=[pe.Stroke(linewidth=2, foreground="black"), pe.Normal()],
+            path_effects=[
+                pe.Stroke(linewidth=2, foreground="black"),
+                pe.Normal(),
+            ],
         )
 
         extra_legend_elements += [
@@ -124,7 +129,9 @@ def dashboard_continuos_with_binary_target(
 
     if handles:
         for h, t in zip(handles, ax_large.legend_.texts):
-            h.set_label(t.get_text())  # assign the legend labels to the handles
+            h.set_label(
+                t.get_text()
+            )  # assign the legend labels to the handles
 
     ax_large.legend(handles=handles + extra_legend_elements, loc="upper right")
     ax_large.set_title("Distribution by target")
@@ -157,9 +164,13 @@ def dashboard_continuos_with_binary_target(
 
     if handles:
         for h, t in zip(handles, axs[1, 2].legend_.texts):
-            h.set_label(t.get_text())  # assign the legend labels to the handles
+            h.set_label(
+                t.get_text()
+            )  # assign the legend labels to the handles
 
-    axs[1, 2].legend(handles=handles + extra_legend_elements, loc="lower right")
+    axs[1, 2].legend(
+        handles=handles + extra_legend_elements, loc="lower right"
+    )
     axs[1, 2].set_title("Cumulative Distribution")
 
     ##
@@ -219,7 +230,9 @@ def dashboard_categorical_with_binary_target(
 
     ncols = 3
     nrows = 2
-    fig, axs = plt.subplots(ncols=ncols, nrows=nrows, figsize=(6 * ncols, 5 * nrows))
+    fig, axs = plt.subplots(
+        ncols=ncols, nrows=nrows, figsize=(6 * ncols, 5 * nrows)
+    )
 
     ax_large = plt.subplot2grid((nrows, ncols), (1, 0), colspan=3)
 
@@ -262,7 +275,9 @@ def dashboard_categorical_with_binary_target(
 
     if handles:
         for h, t in zip(handles, ax.legend_.texts):
-            h.set_label(t.get_text())  # assign the legend labels to the handles
+            h.set_label(
+                t.get_text()
+            )  # assign the legend labels to the handles
 
     ax.legend(handles=handles + extra_legend_elements, loc="lower right")
     ax.set_title("Cumulative Distribution")
@@ -287,7 +302,9 @@ def dashboard_categorical_with_binary_target(
         ax=ax_large,
         cluster=cluster,
         palette=palette,
-        sort_func=lambda grp: grp.sort_values(["all"], ascending=False, inplace=True),
+        sort_func=lambda grp: grp.sort_values(
+            ["all"], ascending=False, inplace=True
+        ),
     )
 
     # fig.tight_layout()

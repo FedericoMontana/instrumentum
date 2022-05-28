@@ -8,8 +8,11 @@ from lightgbm import LGBMClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import (RepeatedStratifiedKFold, StratifiedKFold,
-                                     cross_val_score)
+from sklearn.model_selection import (
+    RepeatedStratifiedKFold,
+    StratifiedKFold,
+    cross_val_score,
+)
 from sklearn.tree import DecisionTreeClassifier
 from xgboost import XGBClassifier, XGBRegressor, plot_importance
 
@@ -32,7 +35,9 @@ def _opt_generic_objective(X, y, trial, estimator, cv, metric):
         else trial.study.best_value
     )
 
-    logger.info("Trials: %s, Best Score: %s, Score %s", trial_n, best_score, score)
+    logger.info(
+        "Trials: %s, Best Score: %s, Score %s", trial_n, best_score, score
+    )
     return score
 
 
@@ -56,7 +61,9 @@ def wrapper_opt(
     cv = RepeatedStratifiedKFold(n_splits=cv_splits, n_repeats=cv_repeats)
     estimator = estimator or DecisionTreeClassifier
 
-    logger.info("Estimator received: %s, trials: %s\n", estimator.__name__, n_trials)
+    logger.info(
+        "Estimator received: %s, trials: %s\n", estimator.__name__, n_trials
+    )
 
     study = optuna.create_study(direction=direction)
     study.optimize(
@@ -93,7 +100,9 @@ def wrapper_opt_lgbm(
 
     def log_trials(std, frz_trial):
         logger.info(
-            "\nTrials: %s, Iteration Score: %s", len(std.trials), std.best_value
+            "\nTrials: %s, Iteration Score: %s",
+            len(std.trials),
+            std.best_value,
         )
 
     params = {

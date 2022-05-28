@@ -6,9 +6,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = u"instrumentum"
-copyright = u"2021, Federico Montanana"
-author = u"Federico Montanana"
+project = "instrumentum"
+copyright = "2021, Federico Montanana"
+author = "Federico Montanana"
 
 # -- General configuration ---------------------------------------------------
 
