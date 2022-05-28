@@ -1,5 +1,4 @@
 def test_good():
-
     assert 6 == 6
 
 
