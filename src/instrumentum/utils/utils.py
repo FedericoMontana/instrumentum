@@ -2,16 +2,23 @@ import logging
 import multiprocessing
 from itertools import chain, combinations
 
+import numpy as np
+
 logger = logging.getLogger(__name__)
 
 
 def get_combs(set_size, combs_to, combs_from=1):
 
     if combs_from > combs_to or combs_from < 0:
-        raise ValueError("combs_to must be possitive and less or equal to combs_from")
+        raise ValueError(
+            "combs_to must be possitive and less or equal to combs_from"
+        )
     # We accepts combs_to > set_size, it will just use set_size as the limit
 
-    l_comb = [combinations(range(set_size), x) for x in range(combs_from, combs_to + 1)]
+    l_comb = [
+        combinations(range(set_size), x)
+        for x in range(combs_from, combs_to + 1)
+    ]
 
     return tuple(chain.from_iterable(l_comb))
 
@@ -49,3 +56,13 @@ def check_jobs(n_jobs, verbose=logging.INFO):
         )
 
     return verified_jobs
+
+
+def get_random_mask(perc_true, n_rows):
+    mask = np.full(n_rows, False)
+
+    row_to = int(perc_true * n_rows)
+    mask[:row_to] = True
+    np.random.shuffle(mask)
+
+    return mask

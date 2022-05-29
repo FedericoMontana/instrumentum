@@ -1,17 +1,15 @@
 # Individual functions to plot advanced analysis
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import matplotlib.patheffects as pe
 import logging
+
+import matplotlib.patheffects as pe
 import matplotlib.ticker as mtick
-
-
-from matplotlib.patches import Patch
+import numpy as np
+import pandas as pd
+import seaborn as sns
 from matplotlib.lines import Line2D
-
+from matplotlib.patches import Patch
 from optbinning import OptimalBinning
+
 
 # TODO: poner la categoria missing al final!
 # TODO: el color del mean no respeta el orden!
@@ -39,7 +37,9 @@ def plot_categorical_with_binary_target(
 
     if cluster and df[cluster].nunique() == 1:
         cluster = None
-        logging.warning("Only one category in cluster. Clustering visual removed")
+        logging.warning(
+            "Only one category in cluster. Clustering visual removed"
+        )
 
     cols_received = [category, y] + ([cluster] if cluster is not None else [])
     cols_to_groupby = ([cluster] if cluster else []) + [category]
@@ -59,7 +59,9 @@ def plot_categorical_with_binary_target(
     grp = pd.concat(
         [
             df.groupby(cols_to_groupby, sort=False).size(),
-            df[df[y] == target_true].groupby(cols_to_groupby, sort=False).size(),
+            df[df[y] == target_true]
+            .groupby(cols_to_groupby, sort=False)
+            .size(),
         ],
         axis=1,
     ).fillna(0)
@@ -92,7 +94,8 @@ def plot_categorical_with_binary_target(
 
     handle_clusters, _ = ax.get_legend_handles_labels()
 
-    # Plot a bar in front of the previous one, just to highlight the % of events in that category
+    # Plot a bar in front of the previous one, just to highlight the % of
+    # events in that category
     # (if stacked functionality worked I woudnt need to do this crap)
     kwargs = {
         "linewidth": 0,
@@ -119,11 +122,13 @@ def plot_categorical_with_binary_target(
         dodge=True,
         ax=ax,
         palette=palette,
-        **kwargs
+        **kwargs,
     )
 
     ax_r = ax.twinx()
-    data = (grp[COL_GRP_TARGET] / grp[COL_GRP_ALL]).reset_index(name="percentage")
+    data = (grp[COL_GRP_TARGET] / grp[COL_GRP_ALL]).reset_index(
+        name="percentage"
+    )
 
     sns.lineplot(
         data=data,
@@ -149,7 +154,10 @@ def plot_categorical_with_binary_target(
             mean,
             ls=":",
             color=colors[e],
-            path_effects=[pe.Stroke(linewidth=2, foreground="black"), pe.Normal()],
+            path_effects=[
+                pe.Stroke(linewidth=2, foreground="black"),
+                pe.Normal(),
+            ],
         )
 
     # Handles and Legends processing
@@ -165,7 +173,8 @@ def plot_categorical_with_binary_target(
         Line2D([0], [0], color="k", label="% of events within bin."),
         Line2D([0], [0], color="k", ls=":", label="Mean of % events in frame"),
     ]
-    # (2) Remove the right side default handles (if no cluster, it doesnt exist. That's the check)
+    # (2) Remove the right side default handles (if no cluster, it doesnt
+    # exist. That's the check)
     if ax_r.get_legend():
         ax_r.get_legend().remove()
 
@@ -226,7 +235,9 @@ def plot_continuos_bin_with_binary_target(
         splits_str.append(beg + " to " + end)
 
     mask_n = df[x].isna()
-    cut = pd.cut(df[~mask_n][x], bins=bins, labels=splits_str, include_lowest=True)
+    cut = pd.cut(
+        df[~mask_n][x], bins=bins, labels=splits_str, include_lowest=True
+    )
 
     df["category"] = np.nan
     df.loc[~mask_n, "category"] = cut.astype(str)
@@ -256,7 +267,8 @@ def plot_value_distribution(
 
     # The standard deviation there exists within the
     # clusters of each column regarding % nan
-    # we can discover if there are differences among the clusters for same columns
+    # we can discover if there are differences among the clusters for same
+    # columns
     CLUSTER_SD_NAN = "CLUSTER_SD_NAN"
 
     # The average of the % nan for the clusters of each column
@@ -267,7 +279,8 @@ def plot_value_distribution(
     # the same column but different cluster
     TARGET_SD_NAN = "TARGET_SD_NAN"
 
-    # If there are y and cluster, the average of TARGET_SD_NAN within each cluster
+    # If there are y and cluster, the average of TARGET_SD_NAN within each
+    # cluster
     TARGET_SD_CLUSTER_AVG_NAN = "TARGET_SD_CLUSTER_AVG_NAN"
 
     df = df.copy()
@@ -275,7 +288,8 @@ def plot_value_distribution(
     cols_to_nan = [x for x in df.columns if x not in [cluster, y]]
     df[cols_to_nan] = df[cols_to_nan].isin(values) * 1
 
-    # Average by column, without considering clusters (will be used as the master)
+    # Average by column, without considering clusters (will be used as the
+    # master)
     final_df = df[cols_to_nan].T.mean(axis=1).rename(FULL_AVG_NAN)
 
     if remove_non_nan_cols:
@@ -302,7 +316,9 @@ def plot_value_distribution(
                 .T.mean(axis=1)
                 .rename(TARGET_SD_CLUSTER_AVG_NAN)
             )
-            final_df = pd.merge(final_df, gby, left_index=True, right_index=True)
+            final_df = pd.merge(
+                final_df, gby, left_index=True, right_index=True
+            )
 
     if y:
         gby = df.groupby(y).mean().T.std(axis=1).rename(TARGET_SD_NAN)
@@ -315,7 +331,11 @@ def plot_value_distribution(
         melted = final_df.reset_index().melt(
             id_vars="index", value_vars=df[cluster].unique()
         )
-        x_val, y_val, hue_val = melted["index"], melted["value"], melted["variable"]
+        x_val, y_val, hue_val = (
+            melted["index"],
+            melted["value"],
+            melted["variable"],
+        )
     else:
         x_val, y_val, hue_val = (
             final_df.index,
@@ -334,11 +354,11 @@ def plot_value_distribution(
     if not y and not cluster:
         return ax
 
-    ## Lines
+    # Lines ------------
 
-    # I want to make sure that I use exactly the same xticks and in the same order
-    # as that placed in the barplot (I could assume that since I used the same dataframe)
-    # but just in case
+    # I want to make sure that I use exactly the same xticks and in the same
+    # order as that placed in the barplot (I could assume that since I used the
+    # same dataframe) but just in case
     df_lines = pd.DataFrame(
         [tick.get_text() for tick in ax.get_xticklabels()], columns=["col"]
     )
@@ -366,7 +386,10 @@ def plot_value_distribution(
             marker="o",
             ax=ax_r,
             color=colors[-count],
-            path_effects=[pe.Stroke(linewidth=2, foreground="black"), pe.Normal()],
+            path_effects=[
+                pe.Stroke(linewidth=2, foreground="black"),
+                pe.Normal(),
+            ],
         )
 
         handles += [Line2D([0], [0], color=colors[-count], label=line)]

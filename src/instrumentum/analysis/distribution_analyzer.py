@@ -1,10 +1,10 @@
-import pandas as pd
 from scipy.stats import normaltest
 
 from instrumentum.analysis.dashboards import (
     dashboard_categorical_with_binary_target,
     dashboard_continuos_with_binary_target,
 )
+
 
 # 2 Standard Deviations from the Mean: 95%
 def remove_outliers(df, col, sd_cutoff=2, qr_cutoff=[1.5, 1.5]):
@@ -52,7 +52,9 @@ class DistAnalyzer:
 
         # Y_type validation ------
         if y is None and y_type is not None:
-            raise ValueError("if y_type is specified, y must be specified as well")
+            raise ValueError(
+                "if y_type is specified, y must be specified as well"
+            )
 
         if y is not None and y_type is None:
             y_type = self._get_col_type(self.y)
@@ -61,9 +63,15 @@ class DistAnalyzer:
 
         # Y_true validation
         if y is None and y_true is not None:
-            raise ValueError("if y_true is specified, y must be specified as well")
+            raise ValueError(
+                "if y_true is specified, y must be specified as well"
+            )
 
-        if y is not None and y_true is not None and y_true not in df[y].unique():
+        if (
+            y is not None
+            and y_true is not None
+            and y_true not in df[y].unique()
+        ):
             raise ValueError("Y true value not found as a value of df[y")
 
         self.y_true = y_true
@@ -74,17 +82,6 @@ class DistAnalyzer:
 
         self.cluster = cluster
 
-        # cols = [f.columns.tolist() for f in frames]
-        # self.common_cols = set(cols[0]).intersection(*cols)
-
-        # if frames_names:
-        #     self.frame_names = frames_names
-        # else:
-        #     self.frame_names = ["Dataset " + str(x) for x in range(len(frames))]
-
-        # if target and target not in self.common_cols:
-        #     raise ValueError("Target not included in all dataframes")
-
     def _get_cols(self, cols):
 
         if cols is not None:
@@ -93,7 +90,8 @@ class DistAnalyzer:
 
             if not isinstance(cols, list):
                 raise ValueError(
-                    "Cols paramter must be either a string or a list of strings"
+                    "Cols paramter must be either a string or a list of "
+                    + "strings"
                 )
 
         return cols
@@ -118,8 +116,11 @@ class DistAnalyzer:
 
         for x in self._get_cols(xs):
 
-            # Let's create a copy to make sure the original is not affected. Only use important columns
-            df = self.df[self.df.columns.intersection([x, self.y, self.cluster])].copy()
+            # Let's create a copy to make sure the original is not affected.
+            # Only use important columns
+            df = self.df[
+                self.df.columns.intersection([x, self.y, self.cluster])
+            ].copy()
 
             # get_type_of_column
             x_type = self._get_col_type(x)
@@ -138,7 +139,8 @@ class DistAnalyzer:
 
             # X is categorical, and Y is binary
             elif (
-                x_type in [ColumnType.CATEGORY_BINARY, ColumnType.CATEGORY_GENERAL]
+                x_type
+                in [ColumnType.CATEGORY_BINARY, ColumnType.CATEGORY_GENERAL]
                 and self.y_type == ColumnType.CATEGORY_BINARY
             ):
                 dashboard_categorical_with_binary_target(

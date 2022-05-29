@@ -104,7 +104,9 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
                 comb_results, tracker_score, current_mask
             )
 
-        self.mask_ = current_mask if self.direction == "forward" else ~current_mask
+        self.mask_ = (
+            current_mask if self.direction == "forward" else ~current_mask
+        )
 
     def _get_n_combs(self, current_mask):
         if not self.max_cols:
@@ -153,13 +155,18 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
         # When forward, we don't want to add if they dont improve the score (>)
         # for backward, we prefer keep removing if they don't reduce the score (>=)
         if (
-            best_comb_score > tracker_score if fwd else best_comb_score >= tracker_score
+            best_comb_score > tracker_score
+            if fwd
+            else best_comb_score >= tracker_score
         ) or self.add_always:
 
             current_mask[idx_best_comb_cols] = True
             tracker_score = best_comb_score
             self.seq_cols_added_.append(
-                (best_comb_score, self._get_all_features_in()[idx_best_comb_cols])
+                (
+                    best_comb_score,
+                    self._get_all_features_in()[idx_best_comb_cols],
+                )
             )
 
             logger.info(
@@ -180,7 +187,8 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
         # Finish conditions because of limits
         if all(current_mask):
             logger.info(
-                "All columns were %s. Finishing.\n", "added" if fwd else "removed"
+                "All columns were %s. Finishing.\n",
+                "added" if fwd else "removed",
             )
             keep_going = False
 

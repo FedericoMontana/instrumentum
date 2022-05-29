@@ -53,7 +53,8 @@ class Interactions(BaseEstimator, TransformerMixin):
                 )
             self._max_degree = self._min_degree = self.degree
         elif (
-            isinstance(self.degree, collections.abc.Iterable) and len(self.degree) == 2
+            isinstance(self.degree, collections.abc.Iterable)
+            and len(self.degree) == 2
         ):
             self._min_degree, self._max_degree = self.degree
             if not (
@@ -82,14 +83,19 @@ class Interactions(BaseEstimator, TransformerMixin):
 
         X = self._validate_data(X)
         idxs = get_combs(
-            self.n_features_in_, combs_from=self._min_degree, combs_to=self._max_degree
+            self.n_features_in_,
+            combs_from=self._min_degree,
+            combs_to=self._max_degree,
         )
 
         # I prefer a tuple due to its unmutability feature (to research)
-        self.interactions_ = tuple((idx, op) for idx in idxs for op in self.operations)
+        self.interactions_ = tuple(
+            (idx, op) for idx in idxs for op in self.operations
+        )
 
         logger.info(
-            "Total number of interactions calculated: %s", len(self.interactions_)
+            "Total number of interactions calculated: %s",
+            len(self.interactions_),
         )
 
     def get_interaction_name(self, idxs, op):

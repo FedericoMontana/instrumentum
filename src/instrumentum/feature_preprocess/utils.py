@@ -1,10 +1,8 @@
 # General utilities for pre-processing
-
+import numpy as np
 from dateutil.parser import parse
 from sklearn import preprocessing
 from sklearn.feature_selection import VarianceThreshold
-
-import numpy as np
 
 
 def remove_shit(dataframe, keep=None):
@@ -52,7 +50,6 @@ def is_date(string, fuzzy=False):
             return False
     except ValueError:
         pass
-    ###############################
 
     try:
         ret = parse(string, fuzzy=fuzzy)
@@ -63,7 +60,7 @@ def is_date(string, fuzzy=False):
 
         return True
 
-    except:
+    except ValueError:
         return False
 
 
@@ -95,7 +92,9 @@ def rescue_non_numeric(df_, nan_code=None):
         elif df[col].nunique() < 30:
             print("--  Label Encoded")
             lb_style = preprocessing.LabelEncoder()
-            df[col] = lb_style.fit_transform(df[col].astype("str")).astype("int64")
+            df[col] = lb_style.fit_transform(df[col].astype("str")).astype(
+                "int64"
+            )
         else:
             print("-- Remains as object")
 

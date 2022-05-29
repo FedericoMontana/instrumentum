@@ -103,7 +103,8 @@ class ClusterSelection(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
                 best_idx = self._get_best_from_cluster(X, y, id_cols)
 
                 logger.info(
-                    "Columns selected: %s\n", self._get_all_features_in()[best_idx]
+                    "Columns selected: %s\n",
+                    self._get_all_features_in()[best_idx],
                 )
 
             current_mask |= mask_from_idx(best_idx, X.shape[1])

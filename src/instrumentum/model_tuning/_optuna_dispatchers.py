@@ -6,10 +6,14 @@ def _xgbclassifier_default(trial: optuna.trial.Trial):
     param = {
         "objective": "binary:logistic",
         "eval_metric": "auc",
-        "booster": trial.suggest_categorical("booster", ["gbtree", "gblinear", "dart"]),
+        "booster": trial.suggest_categorical(
+            "booster", ["gbtree", "gblinear", "dart"]
+        ),
         "lambda": trial.suggest_loguniform("lambda", 1e-3, 10),
         "alpha": trial.suggest_loguniform("alpha", 1e-3, 10),
-        "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-1, log=True),
+        "learning_rate": trial.suggest_float(
+            "learning_rate", 1e-5, 1e-1, log=True
+        ),
         "n_estimators": trial.suggest_int("n_estimators", 20, 600, step=20),
     }
 
@@ -44,8 +48,12 @@ def _lgbmclassifier_default(trial: optuna.trial.Trial):
         "metric": ["binary", "binary_error", "auc"],
         "num_leaves": trial.suggest_int("num_leaves", 5, 500, step=5),
         "max_depth": trial.suggest_int("max_depth", 1, 15),
-        "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1.0, log=True),
-        "colsample_bytree": trial.suggest_uniform("colsample_bytree", 0.0, 1.0),
+        "learning_rate": trial.suggest_float(
+            "learning_rate", 1e-5, 1.0, log=True
+        ),
+        "colsample_bytree": trial.suggest_uniform(
+            "colsample_bytree", 0.0, 1.0
+        ),
         "reg_alpha": trial.suggest_loguniform("reg_alpha", 1e-3, 30),
         "reg_lambda": trial.suggest_loguniform("reg_lambda", 1e-3, 30),
         "min_split_gain": trial.suggest_float("min_split_gain", 0, 15),
@@ -94,7 +102,9 @@ def _random_forest_classifier_default(trial: optuna.trial.Trial):
 def _decision_tree_classifier_default(trial: optuna.trial.Trial):
     params = {
         "max_depth": trial.suggest_int("max_depth", 1, 12),
-        "criterion": trial.suggest_categorical("criterion", ["gini", "entropy"]),
+        "criterion": trial.suggest_categorical(
+            "criterion", ["gini", "entropy"]
+        ),
     }
 
     return params
@@ -119,11 +129,11 @@ def _decision_tree_regressor_default(trial: optuna.trial.Trial):
 
 
 optuna_param_disp = {
-    'XGBClassifier': _xgbclassifier_default, # XGBClassifier.__name__
-    'LGBMClassifier': _lgbmclassifier_default, #LGBMClassifier.__name__
-    'RandomForestClassifier': _random_forest_classifier_default, #RandomForestClassifier.__name__
-    'CatBoostClassifier': _catboostclassifier_default, #CatBoostClassifier.__name__
-    'DecisionTreeClassifier': _decision_tree_classifier_default, #DecisionTreeClassifier.__name__
-    'LogisticRegression': _logistic_regresssion_classifier_default, #LogisticRegression.__name__
-    'DecisionTreeRegressor': _decision_tree_regressor_default, #DecisionTreeRegressor.__name__
+    "XGBClassifier": _xgbclassifier_default,  # XGBClassifier.__name__
+    "LGBMClassifier": _lgbmclassifier_default,  # LGBMClassifier.__name__
+    "RandomForestClassifier": _random_forest_classifier_default,  # RandomForestClassifier.__name__
+    "CatBoostClassifier": _catboostclassifier_default,  # CatBoostClassifier.__name__
+    "DecisionTreeClassifier": _decision_tree_classifier_default,  # DecisionTreeClassifier.__name__
+    "LogisticRegression": _logistic_regresssion_classifier_default,  # LogisticRegression.__name__
+    "DecisionTreeRegressor": _decision_tree_regressor_default,  # DecisionTreeRegressor.__name__
 }

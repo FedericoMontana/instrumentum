@@ -57,7 +57,9 @@ class OptunaSearchCV(BaseSearchCV):
             # TODO: error
             raise "error"
 
-        cv_orig = check_cv(self.cv, y, classifier=is_classifier(self.estimator))
+        cv_orig = check_cv(
+            self.cv, y, classifier=is_classifier(self.estimator)
+        )
 
         optuna.logging.set_verbosity(optuna.logging.ERROR)
         study = optuna.create_study(direction="maximize")
@@ -102,7 +104,9 @@ class OptunaSearchCV(BaseSearchCV):
             else trial.study.best_value
         )
 
-        logger.info("Trials: %s, Best Score: %s, Score %s", trial_n, best_score, score)
+        logger.info(
+            "Trials: %s, Best Score: %s, Score %s", trial_n, best_score, score
+        )
         return score
 
     # Note: parameters ending with "_" exists after fitting (sklearn logic follows that,
