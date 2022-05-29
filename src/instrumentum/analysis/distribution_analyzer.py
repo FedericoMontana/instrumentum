@@ -1,10 +1,10 @@
-import pandas as pd
 from scipy.stats import normaltest
 
 from instrumentum.analysis.dashboards import (
     dashboard_categorical_with_binary_target,
     dashboard_continuos_with_binary_target,
 )
+
 
 # 2 Standard Deviations from the Mean: 95%
 def remove_outliers(df, col, sd_cutoff=2, qr_cutoff=[1.5, 1.5]):
@@ -82,17 +82,6 @@ class DistAnalyzer:
 
         self.cluster = cluster
 
-        # cols = [f.columns.tolist() for f in frames]
-        # self.common_cols = set(cols[0]).intersection(*cols)
-
-        # if frames_names:
-        #     self.frame_names = frames_names
-        # else:
-        #     self.frame_names = ["Dataset " + str(x) for x in range(len(frames))]
-
-        # if target and target not in self.common_cols:
-        #     raise ValueError("Target not included in all dataframes")
-
     def _get_cols(self, cols):
 
         if cols is not None:
@@ -101,7 +90,8 @@ class DistAnalyzer:
 
             if not isinstance(cols, list):
                 raise ValueError(
-                    "Cols paramter must be either a string or a list of strings"
+                    "Cols paramter must be either a string or a list of "
+                    + "strings"
                 )
 
         return cols
@@ -126,7 +116,8 @@ class DistAnalyzer:
 
         for x in self._get_cols(xs):
 
-            # Let's create a copy to make sure the original is not affected. Only use important columns
+            # Let's create a copy to make sure the original is not affected.
+            # Only use important columns
             df = self.df[
                 self.df.columns.intersection([x, self.y, self.cluster])
             ].copy()

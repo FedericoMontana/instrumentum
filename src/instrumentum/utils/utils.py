@@ -2,6 +2,8 @@ import logging
 import multiprocessing
 from itertools import chain, combinations
 
+import numpy as np
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,3 +56,13 @@ def check_jobs(n_jobs, verbose=logging.INFO):
         )
 
     return verified_jobs
+
+
+def get_random_mask(perc_true, n_rows):
+    mask = np.full(n_rows, False)
+
+    row_to = int(perc_true * n_rows)
+    mask[:row_to] = True
+    np.random.shuffle(mask)
+
+    return mask

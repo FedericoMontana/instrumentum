@@ -1,17 +1,15 @@
 # Individual functions to plot advanced analysis
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import matplotlib.patheffects as pe
 import logging
+
+import matplotlib.patheffects as pe
 import matplotlib.ticker as mtick
-
-
-from matplotlib.patches import Patch
+import numpy as np
+import pandas as pd
+import seaborn as sns
 from matplotlib.lines import Line2D
-
+from matplotlib.patches import Patch
 from optbinning import OptimalBinning
+
 
 # TODO: poner la categoria missing al final!
 # TODO: el color del mean no respeta el orden!
@@ -96,7 +94,8 @@ def plot_categorical_with_binary_target(
 
     handle_clusters, _ = ax.get_legend_handles_labels()
 
-    # Plot a bar in front of the previous one, just to highlight the % of events in that category
+    # Plot a bar in front of the previous one, just to highlight the % of
+    # events in that category
     # (if stacked functionality worked I woudnt need to do this crap)
     kwargs = {
         "linewidth": 0,
@@ -174,7 +173,8 @@ def plot_categorical_with_binary_target(
         Line2D([0], [0], color="k", label="% of events within bin."),
         Line2D([0], [0], color="k", ls=":", label="Mean of % events in frame"),
     ]
-    # (2) Remove the right side default handles (if no cluster, it doesnt exist. That's the check)
+    # (2) Remove the right side default handles (if no cluster, it doesnt
+    # exist. That's the check)
     if ax_r.get_legend():
         ax_r.get_legend().remove()
 
@@ -267,7 +267,8 @@ def plot_value_distribution(
 
     # The standard deviation there exists within the
     # clusters of each column regarding % nan
-    # we can discover if there are differences among the clusters for same columns
+    # we can discover if there are differences among the clusters for same
+    # columns
     CLUSTER_SD_NAN = "CLUSTER_SD_NAN"
 
     # The average of the % nan for the clusters of each column
@@ -278,7 +279,8 @@ def plot_value_distribution(
     # the same column but different cluster
     TARGET_SD_NAN = "TARGET_SD_NAN"
 
-    # If there are y and cluster, the average of TARGET_SD_NAN within each cluster
+    # If there are y and cluster, the average of TARGET_SD_NAN within each
+    # cluster
     TARGET_SD_CLUSTER_AVG_NAN = "TARGET_SD_CLUSTER_AVG_NAN"
 
     df = df.copy()
@@ -286,7 +288,8 @@ def plot_value_distribution(
     cols_to_nan = [x for x in df.columns if x not in [cluster, y]]
     df[cols_to_nan] = df[cols_to_nan].isin(values) * 1
 
-    # Average by column, without considering clusters (will be used as the master)
+    # Average by column, without considering clusters (will be used as the
+    # master)
     final_df = df[cols_to_nan].T.mean(axis=1).rename(FULL_AVG_NAN)
 
     if remove_non_nan_cols:
@@ -351,11 +354,11 @@ def plot_value_distribution(
     if not y and not cluster:
         return ax
 
-    ## Lines
+    # Lines ------------
 
-    # I want to make sure that I use exactly the same xticks and in the same order
-    # as that placed in the barplot (I could assume that since I used the same dataframe)
-    # but just in case
+    # I want to make sure that I use exactly the same xticks and in the same
+    # order as that placed in the barplot (I could assume that since I used the
+    # same dataframe) but just in case
     df_lines = pd.DataFrame(
         [tick.get_text() for tick in ax.get_xticklabels()], columns=["col"]
     )

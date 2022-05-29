@@ -1,19 +1,14 @@
 # Individual functions to plot advanced analysis
-import pandas as pd
-import numpy as np
+import logging
+
+import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import seaborn as sns
-import matplotlib.patheffects as pe
-import logging
-import matplotlib.ticker as mtick
-
-
-from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
 from instrumentum.analysis.plots import (
-    plot_continuos_bin_with_binary_target,
     plot_categorical_with_binary_target,
+    plot_continuos_bin_with_binary_target,
 )
 
 

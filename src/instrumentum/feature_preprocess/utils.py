@@ -1,10 +1,8 @@
 # General utilities for pre-processing
-
+import numpy as np
 from dateutil.parser import parse
 from sklearn import preprocessing
 from sklearn.feature_selection import VarianceThreshold
-
-import numpy as np
 
 
 def remove_shit(dataframe, keep=None):
@@ -52,7 +50,6 @@ def is_date(string, fuzzy=False):
             return False
     except ValueError:
         pass
-    ###############################
 
     try:
         ret = parse(string, fuzzy=fuzzy)
@@ -63,7 +60,7 @@ def is_date(string, fuzzy=False):
 
         return True
 
-    except:
+    except ValueError:
         return False
 
 
