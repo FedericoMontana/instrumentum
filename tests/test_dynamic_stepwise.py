@@ -1,11 +1,11 @@
 import logging
 
 import pytest
-from conftest import ESTIMATORS
 
 from instrumentum.feature_selection.stepwise import DynamicStepwise
 from instrumentum.model_tuning._optuna_dispatchers import optuna_param_disp
 from instrumentum.model_tuning.wrapper_optuna import OptunaSearchCV
+from tests.conftest import ESTIMATORS
 
 
 def get_dynamicstepwise(X, y, estimator, combs=1, rounding=3, **kwars):
@@ -68,7 +68,7 @@ def test_multiple_combo_fwd(frame_01, estimator):
 
 
 @pytest.mark.parametrize("estimator", ESTIMATORS)
-def test_multiple_combo_fwd_others(frame_01, estimator):
+def test_max_cols(frame_01, estimator):
 
     X, y = frame_01
 
@@ -77,6 +77,8 @@ def test_multiple_combo_fwd_others(frame_01, estimator):
     stepw = get_dynamicstepwise(
         X, y, combs=2, rounding=3, estimator=estimator, **kwars
     )
+
+    # If ask for 3, these 3 should always be included
     assert set(stepw.get_feature_names_out()) == set(["x0", "x1", "x2"])
 
     # Test 2: max_cols must not return exactly the number provided, it is
@@ -87,14 +89,18 @@ def test_multiple_combo_fwd_others(frame_01, estimator):
     )
     feat = stepw.get_feature_names_out()
 
-    assert (
-        len(feat) < 7
-    )  # Only 5 are goods. This should be always true, and be <=5 ideally
-    assert set(["x0", "x1", "x2", "x3", "x4"]).issubset(
-        feat
-    )  # These should always be included
+    # Only 5 are goods. This should be always true, and be ==5 ideally
+    assert len(feat) < 7
 
-    # Test 3: max_cols and add_always combined
+    # These should always be included
+    assert set(["x0", "x1", "x2", "x3", "x4"]).issubset(feat)
+
+
+@pytest.mark.parametrize("estimator", ESTIMATORS)
+def test_add_always(frame_01, estimator):
+
+    X, y = frame_01
+
     kwars = {"max_cols": 9, "add_always": True}
     stepw = get_dynamicstepwise(
         X, y, combs=2, rounding=3, estimator=estimator, **kwars
@@ -103,8 +109,6 @@ def test_multiple_combo_fwd_others(frame_01, estimator):
     assert (
         len(feat) == 9
     )  # because of add_always, max_cols should match the total
+
+    # These should always be included
     assert set(["x0", "x1", "x2", "x3", "x4"]).issubset(feat)
-
-
-# if __name__ == "__main__":
-#     test_lala()
