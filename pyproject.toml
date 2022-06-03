@@ -25,10 +25,10 @@ flake8 = "^4.0.1"
 ipykernel = "^6.4.1"
 ipython = {extras = ["notebook"], version = "^7.29.0"}
 isort = "^5.10.1"
-pre-commit = "^2.19.0"
 pytest = "^7.1.2"
 python-semantic-release = "^7.19.2"
 tox = "^3.25.0"
+pre-commit = "^2.19.0"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
