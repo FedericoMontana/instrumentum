@@ -1,8 +1,10 @@
 name: CI
 
 on:
-  push:
   workflow_dispatch:
+  push:
+  pull_request:
+    branches: [ main ]
 
 jobs:
 
@@ -37,4 +39,8 @@ jobs:
       run: poetry install
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
 
-    - run: poetry run pytest
+    - name: Run Tests
+      run: |
+        python -V
+        poetry run coverage run -m pytest
+        poetry run coverage report -m
