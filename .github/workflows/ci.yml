@@ -40,8 +40,9 @@ jobs:
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
 
     - name: Run Tests
-      run: |
-        pip install coverage
-        python -V
-        poetry run pytest tests
-        poetry run coverage report
+      run: poetry run python -m pytest -v tests
+#       run: |
+#         pip install coverage
+#         python -V
+#         poetry run pytest tests
+#         poetry run coverage report
