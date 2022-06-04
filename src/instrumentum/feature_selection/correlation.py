@@ -1,18 +1,11 @@
 import logging
 
 import numpy as np
-from scipy.cluster.hierarchy import dendrogram, fcluster, linkage
+from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial.distance import squareform
-from scipy.stats import kendalltau, spearmanr
 from sklearn.base import BaseEstimator, MetaEstimatorMixin, clone
-from sklearn.exceptions import NotFittedError
 from sklearn.feature_selection import SelectorMixin
-from sklearn.metrics import check_scoring
-from sklearn.model_selection import check_cv
-from sklearn.utils.validation import _check_feature_names_in, check_is_fitted
-
-from instrumentum.utils._decorators import timeit
-from instrumentum.utils.utils import check_jobs
+from sklearn.utils.validation import _check_feature_names_in
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +69,8 @@ class ClusterSelection(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
         constant_mask = self._check_constants(X)
         if any(constant_mask):
             raise ValueError(
-                "You must remove the constant columns before using this functionality"
+                "You must remove the constant columns before using this "
+                + "functionality"
             )
 
         self.clusters_in_ = self._get_clusters(X, y)

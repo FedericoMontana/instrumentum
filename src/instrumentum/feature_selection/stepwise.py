@@ -5,14 +5,13 @@ from joblib import Parallel, delayed
 from sklearn.base import BaseEstimator, MetaEstimatorMixin, clone
 from sklearn.exceptions import NotFittedError
 from sklearn.feature_selection import SelectorMixin
-from sklearn.metrics import check_scoring
-from sklearn.model_selection import check_cv
 from sklearn.utils.validation import _check_feature_names_in, check_is_fitted
 
 from instrumentum.utils._decorators import timeit
 from instrumentum.utils.utils import check_jobs, get_combs
 
 logger = logging.getLogger(__name__)
+
 
 # TODO:
 # receive a function for scoring. And add the scoring as a method
@@ -116,7 +115,8 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
         # than what max cols dictate
         n_combs_ = min(self.n_combs, self.max_cols - sum(current_mask))
 
-        # Finishing conditions should finish the process before this could happen
+        # Finishing conditions should finish the process before
+        # his could happen
         assert n_combs_ > 0
 
         return n_combs_
@@ -152,8 +152,10 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
             self._get_all_features_in()[idx_best_comb_cols],
         )
 
-        # When forward, we don't want to add if they dont improve the score (>)
-        # for backward, we prefer keep removing if they don't reduce the score (>=)
+        # When forward, we don't want to add if they dont
+        # improve the score (>)
+        # for backward, we prefer keep removing if they
+        # don't reduce the score (>=)
         if (
             best_comb_score > tracker_score
             if fwd
@@ -179,7 +181,8 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
 
         else:
             logger.info(
-                "Columns were not %s as they do not improve the score. Finishing\n",
+                "Columns were not %s as they do not improve the score."
+                + "Finishing\n",
                 "added" if fwd else "removed",
             )
             keep_going = False
@@ -226,7 +229,8 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
             score = saved_score
         else:
             if sum(mask_candidate) == 0:
-                # For backward, it might remove all columns for some candidates, and won't fit.
+                # For backward, it might remove all columns for
+                # some candidates, and won't fit.
                 score = 0
             else:
                 estimator.fit(X[:, mask_candidate], y)

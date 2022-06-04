@@ -2,8 +2,6 @@ import logging
 
 import numpy as np
 import optuna
-import sklearn
-from joblib import Parallel, delayed
 from sklearn.base import clone, is_classifier
 from sklearn.metrics import check_scoring
 from sklearn.model_selection import check_cv, cross_val_score
@@ -109,8 +107,8 @@ class OptunaSearchCV(BaseSearchCV):
         )
         return score
 
-    # Note: parameters ending with "_" exists after fitting (sklearn logic follows that,
-    # for example, check_is_fitted)
+    # Note: parameters ending with "_" exists after fitting
+    # (sklearn logic follows that, for example, check_is_fitted)
 
     @property
     def get_study_(self):

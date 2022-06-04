@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+
+  Linting:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.9
+      - name: Linting
+        run: |
+          pip install pre-commit
+          pre-commit run --all-files
+
+  test:
+    needs: Linting
+    name: ${{ matrix.os }} / ${{ matrix.python-version }}
+
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.8', '3.9']
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    # install packages via poetry and cache result so future CI runs are fast
+    # the result is only cached if the build is successful
+    # https://stackoverflow.com/questions/62977821/how-to-cache-poetry-install-for-github-actions
+    - name: Install poetry
+      uses: snok/install-poetry@v1.2.0
+      with:
+        version: 1.1.8
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+    - name: Load cached venv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v2
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+    - name: Install dependencies
+      run: poetry install
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+
+    - name: Run Tests
+      run: poetry run python -m pytest -v tests
+#       run: |
+#         pip install coverage
+#         python -V
+#         poetry run pytest tests
+#         poetry run coverage report

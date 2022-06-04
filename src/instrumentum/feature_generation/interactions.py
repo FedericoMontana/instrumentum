@@ -3,19 +3,11 @@ import logging
 import numbers
 
 import numpy as np
-from joblib import Parallel, delayed
-from sklearn.base import BaseEstimator, TransformerMixin, clone
-from sklearn.exceptions import NotFittedError
-from sklearn.metrics import check_scoring
-from sklearn.model_selection import check_cv
-from sklearn.utils.validation import (
-    FLOAT_DTYPES,
-    _check_feature_names_in,
-    check_is_fitted,
-)
+from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.utils.validation import FLOAT_DTYPES, _check_feature_names_in
 
 from instrumentum.utils._decorators import timeit
-from instrumentum.utils.utils import check_jobs, get_combs
+from instrumentum.utils.utils import get_combs
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +41,7 @@ class Interactions(BaseEstimator, TransformerMixin):
         if isinstance(self.degree, numbers.Integral):
             if self.degree < 0:
                 raise ValueError(
-                    f"degree must be a non-negative integer, got {self.degree}."
+                    f"degree must be a non-negative integer, got {self.degree}"
                 )
             self._max_degree = self._min_degree = self.degree
         elif (

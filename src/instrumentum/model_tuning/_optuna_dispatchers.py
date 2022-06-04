@@ -1,5 +1,4 @@
 import optuna
-import optuna.integration.lightgbm as lgb
 
 
 def _xgbclassifier_default(trial: optuna.trial.Trial):
@@ -58,14 +57,6 @@ def _lgbmclassifier_default(trial: optuna.trial.Trial):
         "reg_lambda": trial.suggest_loguniform("reg_lambda", 1e-3, 30),
         "min_split_gain": trial.suggest_float("min_split_gain", 0, 15),
     }
-    # if params["boosting_type"] == "dart":
-    #     params["drop_rate"] = trial.suggest_loguniform("drop_rate", 1e-8, 1.0)
-    #     params["skip_drop"] = trial.suggest_loguniform("skip_drop", 1e-8, 1.0)
-    # if params["boosting_type"] == "goss":
-    #     params["top_rate"] = trial.suggest_uniform("top_rate", 0.0, 1.0)
-    #     params["other_rate"] = trial.suggest_uniform(
-    #         "other_rate", 0.0, 1.0 - params["top_rate"]
-    #     )
 
     return params
 
@@ -122,18 +113,24 @@ def _logistic_regresssion_classifier_default(trial: optuna.trial.Trial):
 def _decision_tree_regressor_default(trial: optuna.trial.Trial):
     params = {
         "max_depth": trial.suggest_int("max_depth", 1, 12),
-        #  "criterion": trial.suggest_categorical("criterion", ["gini", "entropy"])
     }
 
     return params
 
 
 optuna_param_disp = {
-    "XGBClassifier": _xgbclassifier_default,  # XGBClassifier.__name__
-    "LGBMClassifier": _lgbmclassifier_default,  # LGBMClassifier.__name__
-    "RandomForestClassifier": _random_forest_classifier_default,  # RandomForestClassifier.__name__
-    "CatBoostClassifier": _catboostclassifier_default,  # CatBoostClassifier.__name__
-    "DecisionTreeClassifier": _decision_tree_classifier_default,  # DecisionTreeClassifier.__name__
-    "LogisticRegression": _logistic_regresssion_classifier_default,  # LogisticRegression.__name__
-    "DecisionTreeRegressor": _decision_tree_regressor_default,  # DecisionTreeRegressor.__name__
+    # XGBClassifier.__name__
+    "XGBClassifier": _xgbclassifier_default,
+    # LGBMClassifier.__name__
+    "LGBMClassifier": _lgbmclassifier_default,
+    # RandomForestClassifier.__name__
+    "RandomForestClassifier": _random_forest_classifier_default,
+    # CatBoostClassifier.__name__
+    "CatBoostClassifier": _catboostclassifier_default,
+    # DecisionTreeClassifier.__name__
+    "DecisionTreeClassifier": _decision_tree_classifier_default,
+    # LogisticRegression.__name__
+    "LogisticRegression": _logistic_regresssion_classifier_default,
+    # DecisionTreeRegressor.__name__
+    "DecisionTreeRegressor": _decision_tree_regressor_default,
 }
