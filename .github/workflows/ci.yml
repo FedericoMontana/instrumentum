@@ -42,5 +42,5 @@ jobs:
     - name: Run Tests
       run: |
         python -V
-        poetry run coverage run -m pytest
-        poetry run coverage report -m
+        poetry run pytest tests
+        poetry run coverage report
