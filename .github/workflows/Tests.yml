@@ -2,11 +2,11 @@ name: Tests
 
 on:
   workflow_dispatch:
-    branches: [ main, develop ]
+    branches: [ main, master, develop ]
   push:
-    branches: [ main, develop ]
+    branches: [ main, master, mastedevelop ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, master, develop ]
 
 jobs:
 
