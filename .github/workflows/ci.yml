@@ -7,11 +7,11 @@ on:
 jobs:
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # in this example, there is a newer version already installed, 3.7.7, so the older version will be downloaded
-        python-version: ['3.8', '3.9', '3.10']
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.8', '3.9']
     steps:
     - uses: actions/checkout@v3
     - name: Install poetry
@@ -20,5 +20,5 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'poetry'
-    - run: poetry install
-    - run: poetry run pytest
+    - run: poetry run coverage run -m --source=intrumentum pytest tests
+    - run: poetry run coverage report
