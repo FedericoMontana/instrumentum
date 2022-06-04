@@ -1,3 +1,5 @@
+[![quality](https://github.com/FedericoMontana/instrumentum/actions/workflows/quality.yml/badge.svg)](https://github.com/FedericoMontana/instrumentum/actions/workflows/quality.yml)
+
 # Instrumentum
 
 **General utilities for data science projects**
