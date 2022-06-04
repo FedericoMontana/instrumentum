@@ -20,5 +20,5 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'poetry'
-    - run: poetry run coverage run -m --source=intrumentum pytest tests
+    - run: poetry run coverage run -m --source=instrumentum pytest tests
     - run: poetry run coverage report
