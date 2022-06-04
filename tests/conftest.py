@@ -7,11 +7,8 @@ from instrumentum.utils.utils import get_random_mask
 
 # from lightgbm import LGBMClassifier
 # from sklearn.linear_model import LogisticRegression
-
 # These will be used in the paramterized fixture within each test file
-ESTIMATORS = [
-    DecisionTreeClassifier()
-]  # , LGBMClassifier(), LogisticRegression()]
+ESTIMATORS = [DecisionTreeClassifier()]  # , LogisticRegression()]
 
 
 @pytest.fixture
