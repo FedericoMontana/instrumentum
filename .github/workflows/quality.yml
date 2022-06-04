@@ -2,9 +2,11 @@ name: quality
 
 on:
   workflow_dispatch:
+    branches: [ main, develop ]
   push:
+    branches: [ main, develop ]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [ main, develop ]
 
 jobs:
 
