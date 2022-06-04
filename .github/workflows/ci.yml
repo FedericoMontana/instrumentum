@@ -36,7 +36,6 @@ jobs:
     - name: Install dependencies
       run: poetry install
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-  
-    - name: Run Tests!
+
     - run: poetry run coverage run -m --source=instrumentum pytest tests
     - run: poetry run coverage report
