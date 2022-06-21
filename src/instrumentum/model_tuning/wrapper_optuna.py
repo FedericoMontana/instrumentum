@@ -6,6 +6,7 @@ from sklearn.base import clone, is_classifier
 from sklearn.metrics import check_scoring
 from sklearn.model_selection import check_cv, cross_val_score
 from sklearn.model_selection._search import BaseSearchCV
+from sklearn.pipeline import make_pipeline
 from sklearn.utils.validation import check_is_fitted
 
 logger = logging.getLogger(__name__)
@@ -24,12 +25,15 @@ class OptunaSearchCV(BaseSearchCV):
         n_jobs=None,
         refit=True,
         cv=None,
+        preprocessing=None,
         verbose=logging.INFO,
         random_state=None,
     ):
         self.search_space = search_space
         self.n_iter = n_iter
         self.random_state = random_state
+        self.preprocessing = preprocessing
+
         logger.setLevel(verbose)
 
         super().__init__(
@@ -74,9 +78,7 @@ class OptunaSearchCV(BaseSearchCV):
 
         # Let's set some values so the upper classes can work
         if self.refit:
-            self.best_estimator_ = clone(
-                clone(self.estimator).set_params(**study.best_params)
-            )
+            self.best_estimator_ = self._get_estimator(**study.best_params)
             self.best_estimator_.fit(X, y)
 
         self.scorer_ = scorer  # important so it knows how to calculate score
@@ -85,12 +87,30 @@ class OptunaSearchCV(BaseSearchCV):
 
         return self
 
+    def _get_estimator(self, **param):
+        clf = clone(
+            clone(self.estimator).set_params(
+                **param, random_state=self.random_state
+            )
+        )
+
+        if self.preprocessing:
+
+            args = (
+                self.preprocessing
+                if isinstance(self.preprocessing, list)
+                else [self.preprocessing]
+            ) + [clf]
+
+            clf = make_pipeline(*args)
+
+        return clf
+
     def _opt_generic_objective(self, trial, X, y, cv, scoring):
 
         param = self.search_space(trial)
-        candidate_estimator = clone(self.estimator)
-        candidate_estimator.set_params(**param, random_state=self.random_state)
 
+        candidate_estimator = self._get_estimator(**param)
         score = cross_val_score(
             candidate_estimator, X=X, y=y, cv=cv, scoring=scoring
         ).mean()
@@ -105,6 +125,7 @@ class OptunaSearchCV(BaseSearchCV):
         logger.info(
             "Trials: %s, Best Score: %s, Score %s", trial_n, best_score, score
         )
+        logger.debug("Parameters: %s", str(param))
         return score
 
     # Note: parameters ending with "_" exists after fitting

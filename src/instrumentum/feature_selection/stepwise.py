@@ -1,9 +1,9 @@
 import logging
 
 import numpy as np
+import sklearn
 from joblib import Parallel, delayed
 from sklearn.base import BaseEstimator, MetaEstimatorMixin, clone
-from sklearn.exceptions import NotFittedError
 from sklearn.feature_selection import SelectorMixin
 from sklearn.utils.validation import _check_feature_names_in, check_is_fitted
 
@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 # TODO:
-# receive a function for scoring. And add the scoring as a method
 # Document the full shit
 class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
     def __init__(
@@ -30,6 +29,7 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
         # Max cols doesnt mean exactly this number, but
         # no more than this number (unless add_always is true)
         max_cols=None,
+        best_candidate_strategy="round_len_score",
     ):
 
         self.estimator = estimator
@@ -40,6 +40,7 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
         self.n_jobs = n_jobs
         self.verbose = verbose
         self.max_cols = max_cols
+        self.best_candidate_strategy = best_candidate_strategy
 
         logger.setLevel(verbose)
 
@@ -51,6 +52,18 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
                 "direction must be either 'forward' or 'backward'. "
                 f"Got {self.direction}."
             )
+
+        if self.best_candidate_strategy not in ("round_len_score", "score"):
+            raise ValueError(
+                "best_candidate_strategy must be either "
+                + "'round_len_score' or 'score'. "
+                f"Got {self.best_candidate_strategy}."
+            )
+
+        if not isinstance(
+            self.estimator, sklearn.model_selection._search.BaseSearchCV
+        ):
+            raise ValueError("Estimator must implement BaseSearchCV")
 
         # features_name_in are set if X is a DataFrame
         X, y = self._validate_data(
@@ -68,12 +81,11 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
         current_mask = np.zeros(n_features, dtype=bool)
 
         if self.direction == "backward":
-            est = clone(self.estimator)
-            est.fit(X[:, ~current_mask], y)
-            tracker_score = round(est.best_score_, self.rounding)
+            tracker_score = self._get_score(X[:, ~current_mask], y)
+            tracker_score = round(tracker_score, self.rounding)
             logger.info("With all columns, score is %s\n", tracker_score)
         else:
-            # For forward, we know we have to at least add 1 column
+            # For forward, we gotta start with 0 (no columns)
             tracker_score = 0
 
         keep_going = True
@@ -91,8 +103,6 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
                 delayed(self._get_best_columns)(
                     X,
                     y,
-                    estimator=clone(self.estimator),
-                    rounding=self.rounding,
                     comb=comb,
                     mask=current_mask,
                 )
@@ -136,9 +146,11 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
         )
 
         # Get the best ccandidate
-        best_comb_score, idx_best_comb_cols = max(
-            comb_results, key=lambda item: item[0]
+        best_comb_score, idx_best_comb_cols = self._get_best_candidate(
+            comb_results
         )
+
+        best_comb_score = round(best_comb_score, self.rounding)
 
         logger.info(
             "Best score from combinations: %s, global score %s",
@@ -201,15 +213,34 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
 
         return keep_going, tracker_score, current_mask
 
-    def _get_best_columns(self, X, y, estimator, rounding, comb, mask):
-        logger.setLevel(self.verbose)  # needed for delayed
+    def _get_best_candidate(self, comb_results):
 
-        try:
-            check_is_fitted(estimator)
-        except NotFittedError:
-            pass
+        if self.best_candidate_strategy == "round_len_score":
+
+            inv = -1 if self.direction == "forward" else 1
+
+            comb_sorted = sorted(
+                comb_results,
+                key=lambda x: (
+                    round(x[0], self.rounding),
+                    inv * len(x[1]),
+                    x[0],
+                ),
+                reverse=True,
+            )
+            return comb_sorted[0]
+
         else:
-            raise ValueError("Estimator was fitted already")
+
+            comb_sorted = sorted(
+                comb_results,
+                key=lambda x: (x[0]),
+                reverse=True,
+            )
+            return comb_sorted[0]
+
+    def _get_best_columns(self, X, y, comb, mask):
+        logger.setLevel(self.verbose)  # needed for delayed
 
         idx_not_processed = np.flatnonzero(~mask)
         idx_comb_to_eval = np.take(idx_not_processed, comb)
@@ -233,8 +264,7 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
                 # some candidates, and won't fit.
                 score = 0
             else:
-                estimator.fit(X[:, mask_candidate], y)
-                score = round(estimator.best_score_, rounding)
+                score = self._get_score(X[:, mask_candidate], y)
 
         logger.debug(
             "Score %s checking %s full combination: %s %s",
@@ -246,10 +276,11 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
 
         return score, idx_comb_to_eval
 
-    # this is an utility function to get the names of the
-    # columns passed
-    # it works with numpy and dataframes (leverage some
-    # sklearn functionality).
+    def _get_score(self, X, y):
+        est = clone(self.estimator)
+        est.fit(X, y)
+        return est.best_score_
+
     def _get_all_features_in(self):
         return _check_feature_names_in(self)
 
@@ -258,7 +289,7 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
 
     @property
     def seq_columns_selected_(self):
-        # todo if fitted...
+        check_is_fitted(self)
         # How to act on this when returned (asuming ret), options:
         # (1) pd.DataFrame(ret, columns=['a', 'b']) # Pretty printer
         # (2) np.concatenate([x[1] for x in ret]) # Get all columns

@@ -1,14 +1,21 @@
+import itertools
+
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 
 from instrumentum.utils.utils import get_random_mask
 
-# from lightgbm import LGBMClassifier
-# from sklearn.linear_model import LogisticRegression
 # These will be used in the paramterized fixture within each test file
-ESTIMATORS = [DecisionTreeClassifier()]  # , LogisticRegression()]
+ESTIMATORS = [DecisionTreeClassifier(), LogisticRegression()]
+COMBS = [1, 2]
+
+
+def get_params():
+    for x in itertools.product(ESTIMATORS, COMBS):
+        yield x
 
 
 @pytest.fixture
