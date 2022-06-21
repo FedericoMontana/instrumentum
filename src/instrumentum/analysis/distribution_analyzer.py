@@ -40,7 +40,15 @@ class ColumnType:
 
 
 class DistAnalyzer:
-    def __init__(self, df, y=None, y_true=None, y_type=None, cluster=None):
+    def __init__(
+        self,
+        df,
+        y=None,
+        y_true=None,
+        y_type=None,
+        cluster=None,
+        col_types=None,
+    ):
 
         self.df = df
 
@@ -72,15 +80,39 @@ class DistAnalyzer:
             and y_true is not None
             and y_true not in df[y].unique()
         ):
-            raise ValueError("Y true value not found as a value of df[y")
+            raise ValueError(
+                "Y true value not found as a value of dataframe[y]"
+            )
 
         self.y_true = y_true
 
         # cluster validation
         if cluster is not None and cluster not in df.columns.to_list():
-            raise ValueError("cluster must be included in df")
+            raise ValueError("cluster must be included in dataframe")
 
         self.cluster = cluster
+
+        # col_types validation
+        if col_types:
+
+            if not all(
+                [
+                    k in df.columns.to_list()
+                    and v
+                    in [
+                        ColumnType.CATEGORY_BINARY,
+                        ColumnType.CATEGORY_GENERAL,
+                        ColumnType.CONTINUOS,
+                    ]
+                    for k, v in col_types.items()
+                ]
+            ):
+                raise ValueError(
+                    "col_types keys must be columns of the dataframe, "
+                    + "and values must be accepted column types"
+                )
+
+        self.col_types = col_types
 
     def _get_cols(self, cols):
 
@@ -97,6 +129,15 @@ class DistAnalyzer:
         return cols
 
     def _get_col_type(self, col):
+
+        # There was an overwrite?
+        if self.col_types and col in self.col_types:
+            print(
+                "Overwrite for column: %s, column type: ",
+                col,
+                self.col_types[col],
+            )
+            return self.col_types[col]
 
         # TODO: maybe do this for each cluster?
         nunique = self.df[col].nunique()
@@ -140,7 +181,10 @@ class DistAnalyzer:
             # X is categorical, and Y is binary
             elif (
                 x_type
-                in [ColumnType.CATEGORY_BINARY, ColumnType.CATEGORY_GENERAL]
+                in [
+                    ColumnType.CATEGORY_BINARY,
+                    ColumnType.CATEGORY_GENERAL,
+                ]
                 and self.y_type == ColumnType.CATEGORY_BINARY
             ):
                 dashboard_categorical_with_binary_target(
