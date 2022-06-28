@@ -1,4 +1,4 @@
-name: Tests
+name: test
 
 on:
   workflow_dispatch:
@@ -10,22 +10,7 @@ on:
 
 jobs:
 
-  Linting:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v3
-        with:
-          python-version: 3.9
-      - name: Linting
-        run: |
-          pip install pre-commit
-          pre-commit run --all-files
-
   test:
-    needs: Linting
     name: ${{ matrix.os }} / ${{ matrix.python-version }}
 
     runs-on: ${{ matrix.os }}
