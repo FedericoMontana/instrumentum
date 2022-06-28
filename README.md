@@ -1,4 +1,5 @@
 [![Tests](https://github.com/FedericoMontana/instrumentum/actions/workflows/Tests.yml/badge.svg)](https://github.com/FedericoMontana/instrumentum/actions/workflows/Tests.yml)
+[![Linting](https://github.com/FedericoMontana/instrumentum/actions/workflows/linting.yml/badge.svg)](https://github.com/FedericoMontana/instrumentum/actions/workflows/linting.yml)
 ![PyPI](https://img.shields.io/pypi/v/instrumentum?color=green&label=stable)
 
 # Instrumentum
