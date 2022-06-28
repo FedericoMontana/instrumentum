@@ -1,4 +1,4 @@
-name: Tests
+name: test
 
 on:
   workflow_dispatch:
@@ -10,22 +10,7 @@ on:
 
 jobs:
 
-  Linting:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v3
-        with:
-          python-version: 3.9
-      - name: Linting
-        run: |
-          pip install pre-commit
-          pre-commit run --all-files
-
   test:
-    needs: Linting
     name: ${{ matrix.os }} / ${{ matrix.python-version }}
 
     runs-on: ${{ matrix.os }}
@@ -56,12 +41,12 @@ jobs:
       uses: actions/cache@v2
       with:
         path: .venv
-        key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+        key: _venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
     - name: Install dependencies
       run: poetry install
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
 
-    - name: Run Tests
+    - name: Run Test
       run: poetry run python -m pytest -v tests
 #       run: |
 #         pip install coverage
