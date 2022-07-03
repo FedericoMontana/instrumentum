@@ -131,6 +131,35 @@ class OptunaSearchCV(BaseSearchCV):
     # Note: parameters ending with "_" exists after fitting
     # (sklearn logic follows that, for example, check_is_fitted)
 
+    # TODO: check que el atributo exista (no siempre va a existir)
+    @property
+    def coef_(self):
+        check_is_fitted(self)
+
+        if not self.refit:
+            raise AttributeError("refit must be true to use property")
+
+        # If we have a pipeline, we need to access the estimator from it
+        return (
+            self.best_estimator_._final_estimator.coef_
+            if self.preprocessing
+            else self.best_estimator_.coef_
+        )
+
+    @property
+    def feature_importances_(self):
+        check_is_fitted(self)
+
+        if not self.refit:
+            raise AttributeError("refit must be true to use property")
+
+        # If we have a pipeline, we need to access the estimator from it
+        return (
+            self.best_estimator_._final_estimator.feature_importances_
+            if self.preprocessing
+            else self.best_estimator_.feature_importances_
+        )
+
     @property
     def get_study_(self):
         check_is_fitted(self)
