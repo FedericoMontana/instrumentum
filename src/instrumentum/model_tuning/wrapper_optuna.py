@@ -2,7 +2,7 @@ import logging
 
 import numpy as np
 import optuna
-import sklearn
+import sklearn.pipeline
 from sklearn.base import clone, is_classifier
 from sklearn.metrics import check_scoring
 from sklearn.model_selection import check_cv, cross_val_score
