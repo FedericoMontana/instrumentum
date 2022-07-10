@@ -2,11 +2,11 @@ import logging
 
 import numpy as np
 import optuna
+import sklearn
 from sklearn.base import clone, is_classifier
 from sklearn.metrics import check_scoring
 from sklearn.model_selection import check_cv, cross_val_score
 from sklearn.model_selection._search import BaseSearchCV
-from sklearn.pipeline import make_pipeline
 from sklearn.utils.validation import check_is_fitted
 
 logger = logging.getLogger(__name__)
@@ -25,14 +25,14 @@ class OptunaSearchCV(BaseSearchCV):
         n_jobs=None,
         refit=True,
         cv=None,
-        preprocessing=None,
         verbose=logging.INFO,
         random_state=None,
+        pipe_estimator=None,
     ):
         self.search_space = search_space
         self.n_iter = n_iter
         self.random_state = random_state
-        self.preprocessing = preprocessing
+        self.pipe_estimator = pipe_estimator
 
         logger.setLevel(verbose)
 
@@ -56,8 +56,14 @@ class OptunaSearchCV(BaseSearchCV):
         elif self.scoring is None or isinstance(self.scoring, str):
             scorer = check_scoring(self.estimator, self.scoring)
         else:
-            # TODO: error
-            raise "error"
+            raise ValueError("Error in parameter scoring")
+
+        if isinstance(self.estimator, sklearn.pipeline.Pipeline) ^ bool(
+            self.pipe_estimator
+        ):
+            raise ValueError(
+                "Estimator must be a Pipeline and pipe_estimator supplied"
+            )
 
         cv_orig = check_cv(
             self.cv, y, classifier=is_classifier(self.estimator)
@@ -88,21 +94,19 @@ class OptunaSearchCV(BaseSearchCV):
         return self
 
     def _get_estimator(self, **param):
-        clf = clone(
-            clone(self.estimator).set_params(
-                **param, random_state=self.random_state
-            )
-        )
 
-        if self.preprocessing:
+        if self.random_state is not None:
+            param["random_state"] = self.random_state
 
-            args = (
-                self.preprocessing
-                if isinstance(self.preprocessing, list)
-                else [self.preprocessing]
-            ) + [clf]
+        # if the estimator is within a pipeline, in order to access it
+        # with set_params, we need to append the name of that estimator
+        # within the pipeline
+        if self.pipe_estimator is not None:
+            param = {
+                self.pipe_estimator + "__" + k: v for k, v in param.items()
+            }
 
-            clf = make_pipeline(*args)
+        clf = clone(clone(self.estimator).set_params(**param))
 
         return clf
 
@@ -111,6 +115,7 @@ class OptunaSearchCV(BaseSearchCV):
         param = self.search_space(trial)
 
         candidate_estimator = self._get_estimator(**param)
+
         score = cross_val_score(
             candidate_estimator, X=X, y=y, cv=cv, scoring=scoring
         ).mean()
@@ -128,10 +133,6 @@ class OptunaSearchCV(BaseSearchCV):
         logger.debug("Parameters: %s", str(param))
         return score
 
-    # Note: parameters ending with "_" exists after fitting
-    # (sklearn logic follows that, for example, check_is_fitted)
-
-    # TODO: check que el atributo exista (no siempre va a existir)
     @property
     def coef_(self):
         check_is_fitted(self)
@@ -141,8 +142,8 @@ class OptunaSearchCV(BaseSearchCV):
 
         # If we have a pipeline, we need to access the estimator from it
         return (
-            self.best_estimator_._final_estimator.coef_
-            if self.preprocessing
+            self.best_estimator_[self.pipe_estimator].coef_
+            if self.pipe_estimator
             else self.best_estimator_.coef_
         )
 
@@ -155,8 +156,8 @@ class OptunaSearchCV(BaseSearchCV):
 
         # If we have a pipeline, we need to access the estimator from it
         return (
-            self.best_estimator_._final_estimator.feature_importances_
-            if self.preprocessing
+            self.best_estimator_[self.pipe_estimator].feature_importances_
+            if self.pipe_estimator
             else self.best_estimator_.feature_importances_
         )
 

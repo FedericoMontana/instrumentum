@@ -86,7 +86,7 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
             logger.info("With all columns, score is %s\n", tracker_score)
         else:
             # For forward, we gotta start with 0 (no columns)
-            tracker_score = 0
+            tracker_score = -np.inf
 
         keep_going = True
 
@@ -285,6 +285,7 @@ class DynamicStepwise(SelectorMixin, MetaEstimatorMixin, BaseEstimator):
         return _check_feature_names_in(self)
 
     def _get_support_mask(self):
+        check_is_fitted(self)
         return self.mask_
 
     @property

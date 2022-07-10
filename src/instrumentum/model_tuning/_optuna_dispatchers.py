@@ -61,6 +61,29 @@ def _lgbmclassifier_default(trial: optuna.trial.Trial):
     return params
 
 
+def _lgbm_regressor_default(trial: optuna.trial.Trial):
+    params = {
+        # "verbosity": -1,
+        "boosting_type": trial.suggest_categorical(
+            "boosting_type", ["gbdt", "dart", "goss"]
+        ),
+        "verbose": -1,
+        "num_leaves": trial.suggest_int("num_leaves", 5, 500, step=5),
+        "max_depth": trial.suggest_int("max_depth", 1, 15),
+        "learning_rate": trial.suggest_float(
+            "learning_rate", 1e-5, 1.0, log=True
+        ),
+        "colsample_bytree": trial.suggest_uniform(
+            "colsample_bytree", 0.0, 1.0
+        ),
+        "reg_alpha": trial.suggest_loguniform("reg_alpha", 1e-3, 30),
+        "reg_lambda": trial.suggest_loguniform("reg_lambda", 1e-3, 30),
+        "min_split_gain": trial.suggest_float("min_split_gain", 0, 15),
+    }
+
+    return params
+
+
 def _catboostclassifier_default(trial: optuna.trial.Trial):
     params = {
         "allow_writing_files": False,
@@ -118,13 +141,26 @@ def _decision_tree_regressor_default(trial: optuna.trial.Trial):
     return params
 
 
+def _random_forest_regressor_default(trial: optuna.trial.Trial):
+    params = {
+        "n_estimators": trial.suggest_int("n_estimators", 10, 120),
+        "max_depth": trial.suggest_int("max_depth", 1, 12),
+    }
+
+    return params
+
+
 optuna_param_disp = {
     # XGBClassifier.__name__
     "XGBClassifier": _xgbclassifier_default,
     # LGBMClassifier.__name__
     "LGBMClassifier": _lgbmclassifier_default,
+    # LGBMClassifier.__name__
+    "LGBMRegressor": _lgbm_regressor_default,
     # RandomForestClassifier.__name__
     "RandomForestClassifier": _random_forest_classifier_default,
+    # RandomForestRegressor.__name__
+    "RandomForestRegressor": _random_forest_regressor_default,
     # CatBoostClassifier.__name__
     "CatBoostClassifier": _catboostclassifier_default,
     # DecisionTreeClassifier.__name__
